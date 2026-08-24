@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Round Ventilator Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --navy-900:#0A2E4D;
+  --navy-800:#0F3A5F;
+  --navy-700:#1B4F72;
+  --teal-600:#0F7C8C;
+  --teal-500:#159AA8;
+  --teal-100:#E3F2F3;
+  --amber-500:#E2A73E;
+  --coral-500:#D96C4B;
+  --violet-500:#7C6FC4;
+  --slate-900:#1C2530;
+  --slate-600:#48566B;
+  --slate-500:#64748B;
+  --slate-300:#C7D0DA;
+  --border:#E2E8F0;
+  --paper:#F5F7FA;
+  --white:#FFFFFF;
+  --good:#1E8E5A;
+  --warn:#C7811E;
+  --shadow: 0 1px 2px rgba(10,46,77,0.06), 0 4px 16px rgba(10,46,77,0.05);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  color:var(--slate-900);
+  font-family:'Sarabun', sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums;}
+
+/* ===== Header ===== */
+.header{
+  background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy-700) 100%);
+  color:#fff;
+  padding:36px 40px 44px;
+  position:relative;
+  overflow:hidden;
+}
+.header::after{
+  content:"";
+  position:absolute;
+  right:-60px; top:-60px;
+  width:280px;height:280px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(21,154,168,0.35) 0%, transparent 70%);
+}
+.header-inner{
+  max-width:1280px;
+  margin:0 auto;
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:20px;
+}
+.brand{display:flex; align-items:center; gap:16px;}
+.brand-mark{
+  width:52px;height:52px;
+  border-radius:14px;
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.25);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.eyebrow{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+  color:var(--teal-500);
+  margin:0 0 6px;
+  font-weight:600;
+}
+.header h1{
+  margin:0;
+  font-size:26px;
+  font-weight:800;
+  letter-spacing:-0.01em;
+}
+.header .sub{
+  margin:4px 0 0;
+  color:rgba(255,255,255,0.68);
+  font-size:14px;
+}
+.header-meta{
+  display:flex;
+  gap:28px;
+  flex-wrap:wrap;
+}
+.hm-item{text-align:right;}
+.hm-item .num{font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; color:#fff;}
+.hm-item .lbl{font-size:11.5px; color:rgba(255,255,255,0.6); margin-top:2px;}
+
+/* ===== Sync bar ===== */
+.sync-bar{
+  max-width:1280px;
+  margin:-18px auto 0;
+  position:relative;
+  z-index:3;
+  padding:0 40px;
+}
+.sync-pill{
+  display:flex; align-items:center; gap:10px;
+  background:var(--white);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+  border-radius:12px;
+  padding:10px 16px;
+  font-size:12.5px;
+  color:var(--slate-600);
+  flex-wrap:wrap;
+}
+.sync-dot{width:8px;height:8px;border-radius:50%; background:var(--slate-300); flex-shrink:0;}
+.sync-dot.live{background:var(--good); box-shadow:0 0 0 3px rgba(30,142,90,0.15);}
+.sync-dot.stale{background:var(--warn); box-shadow:0 0 0 3px rgba(199,129,30,0.15);}
+.sync-dot.loading{background:var(--teal-500); animation:pulse 1s infinite;}
+@keyframes pulse{0%{opacity:1;}50%{opacity:0.3;}100%{opacity:1;}}
+.sync-text b{color:var(--slate-900);}
+.sync-btn{
+  margin-left:auto;
+  background:var(--navy-900); color:#fff; border:none;
+  font-family:'Sarabun',sans-serif; font-weight:600; font-size:12.5px;
+  padding:7px 14px; border-radius:8px; cursor:pointer;
+}
+.sync-btn:hover{background:var(--navy-700);}
+.sync-btn:disabled{opacity:0.5; cursor:default;}
+.sync-url{color:var(--slate-500); font-family:'IBM Plex Mono',monospace; font-size:11px; word-break:break-all;}
+
+/* ===== Layout ===== */
+.wrap{max-width:1280px;margin:0 auto;padding:20px 40px 80px;}
+.section-title{
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  color:var(--slate-600);
+  margin:0 0 14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.section-title::before{
+  content:"";
+  width:3px;height:14px;
+  background:var(--teal-600);
+  border-radius:2px;
+}
+
+/* ===== KPI cards ===== */
+.kpi-row{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:16px;
+  margin-bottom:32px;
+}
+.kpi-card{
+  background:var(--white);
+  border-radius:16px;
+  padding:20px 22px;
+  box-shadow:var(--shadow);
+  border:1px solid var(--border);
+}
+.kpi-card .lbl{font-size:12.5px; color:var(--slate-500); font-weight:600;}
+.kpi-card .val{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:30px;
+  font-weight:600;
+  color:var(--navy-900);
+  margin-top:6px;
+  letter-spacing:-0.02em;
+}
+.kpi-card .val .unit{font-size:14px;color:var(--slate-500); font-weight:500; margin-left:4px;}
+.kpi-card.accent-c2 .val{color:var(--teal-600);}
+.kpi-card.accent-hf .val{color:var(--navy-700);}
+.kpi-card.accent-bird .val{color:var(--coral-500);}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+
+/* ===== Card shell ===== */
+.panel{
+  background:var(--white);
+  border-radius:16px;
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+  padding:24px;
+  margin-bottom:28px;
+}
+
+/* ===== Ward directory grid ===== */
+.ward-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(220px,1fr));
+  gap:14px;
+}
+.ward-card{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:16px;
+  background:linear-gradient(180deg, #FCFDFE 0%, #F7F9FB 100%);
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.ward-card:hover{transform:translateY(-2px); box-shadow:0 6px 18px rgba(10,46,77,0.08);}
+.ward-card .wname{font-weight:700;font-size:14.5px;color:var(--navy-900); margin-bottom:2px;}
+.ward-card .wtotal{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--slate-500); margin-bottom:10px;}
+.ward-card .wtotal b{color:var(--slate-900); font-size:13px;}
+.stack-bar{height:8px;border-radius:5px;overflow:hidden;display:flex;background:#EEF1F5;margin-bottom:10px;}
+.stack-seg{height:100%;}
+.wtypes{display:flex; gap:10px; flex-wrap:wrap;}
+.wtype{font-size:11.5px; color:var(--slate-600); display:flex; align-items:center; gap:5px;}
+.wtype b{font-family:'IBM Plex Mono',monospace; color:var(--slate-900); font-weight:600;}
+
+/* ===== Trend chart ===== */
+.chart-box{height:280px;}
+
+/* ===== Date explorer (accordion) ===== */
+.explorer{
+  display:grid;
+  grid-template-columns:280px 1fr;
+  gap:24px;
+}
+@media (max-width: 860px){ .explorer{grid-template-columns:1fr;} .kpi-row{grid-template-columns:repeat(2,1fr);} }
+
+.date-nav{
+  border-right:1px solid var(--border);
+  padding-right:20px;
+  max-height:560px;
+  overflow-y:auto;
+}
+.accordion-month{
+  border:1px solid var(--border);
+  border-radius:10px;
+  margin-bottom:8px;
+  overflow:hidden;
+}
+.accordion-head{
+  width:100%;
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--paper);
+  border:none;
+  padding:10px 12px;
+  cursor:pointer;
+  font-family:'Sarabun',sans-serif;
+  font-weight:700;
+  font-size:12.5px;
+  color:var(--navy-900);
+}
+.accordion-head:hover{background:var(--teal-100);}
+.accordion-head .chev{
+  transition:transform .18s ease;
+  color:var(--slate-500);
+  font-size:11px;
+}
+.accordion-month.open .chev{transform:rotate(90deg);}
+.accordion-head .mcount{
+  font-family:'IBM Plex Mono',monospace; font-weight:500; font-size:11px; color:var(--slate-500);
+}
+.accordion-body{
+  max-height:0;
+  overflow:hidden;
+  transition:max-height .22s ease;
+  background:var(--white);
+}
+.accordion-month.open .accordion-body{ max-height:1000px; }
+.date-btn{
+  width:100%;
+  text-align:left;
+  background:none;border:none;
+  padding:8px 12px 8px 22px;
+  border-radius:0;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12.5px;
+  color:var(--slate-600);
+  cursor:pointer;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  border-top:1px solid var(--border);
+}
+.date-btn:first-child{border-top:none;}
+.date-btn:hover{background:var(--teal-100);}
+.date-btn.active{background:var(--navy-900); color:#fff;}
+.date-btn .cnt{font-size:11px; opacity:0.65;}
+
+.detail-head{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px;}
+.detail-head h3{margin:0; font-size:18px; color:var(--navy-900); font-weight:700;}
+.detail-head .badge{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:12px;
+  background:var(--teal-100);
+  color:var(--teal-600);
+  padding:5px 10px;
+  border-radius:20px;
+  font-weight:600;
+}
+
+table.detail-table{width:100%; border-collapse:collapse; font-size:13.5px;}
+table.detail-table th{
+  text-align:left; padding:9px 10px;
+  font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em;
+  color:var(--slate-500); border-bottom:2px solid var(--border);
+  font-weight:700;
+}
+table.detail-table td{padding:9px 10px; border-bottom:1px solid var(--border); }
+table.detail-table td.num{font-family:'IBM Plex Mono',monospace; text-align:right;}
+table.detail-table tr:last-child td{border-bottom:none;}
+table.detail-table tr.total-row td{font-weight:700; background:var(--paper); border-top:2px solid var(--border);}
+
+.legend-row{display:flex; gap:18px; margin-top:14px; flex-wrap:wrap;}
+.legend-item{font-size:12px; color:var(--slate-600); display:flex; align-items:center; gap:6px;}
+
+footer{
+  text-align:center;
+  color:var(--slate-500);
+  font-size:12px;
+  padding:24px 0 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path d="M2 12h4l2-7 4 14 2-7h8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <p class="eyebrow">Ventilator Round &middot; Hospital Report</p>
+        <h1>แดชบอร์ดสรุปการ Round เครื่องช่วยหายใจ</h1>
+        <p class="sub" id="dateRangeSub">ข้อมูลจาก Google Sheet &middot; แยกตามหน่วยงาน / ตึก</p>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="hm-item">
+        <div class="num mono" id="hmDays">-</div>
+        <div class="lbl">วันที่บันทึก (Round)</div>
+      </div>
+      <div class="hm-item">
+        <div class="num mono" id="hmWards">-</div>
+        <div class="lbl">หน่วยงาน / ตึก</div>
+      </div>
+      <div class="hm-item">
+        <div class="num mono" id="hmTotal">-</div>
+        <div class="lbl">รายการทั้งหมด</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sync-bar">
+  <div class="sync-pill">
+    <span class="sync-dot loading" id="syncDot"></span>
+    <span class="sync-text" id="syncText">กำลังเชื่อมต่อกับ Google Sheet...</span>
+    <button class="sync-btn" id="syncBtn">ซิงก์ข้อมูลใหม่</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="lbl">เครื่องทั้งหมดที่บันทึก (สะสม)</div>
+      <div class="val mono" id="kpiTotal">-</div>
+    </div>
+    <div class="kpi-card accent-c2">
+      <div class="lbl"><span class="dot" style="background:var(--teal-600)"></span>C2</div>
+      <div class="val mono" id="kpiC2">-</div>
+    </div>
+    <div class="kpi-card accent-hf">
+      <div class="lbl"><span class="dot" style="background:var(--navy-700)"></span>High flow</div>
+      <div class="val mono" id="kpiHF">-</div>
+    </div>
+    <div class="kpi-card accent-bird">
+      <div class="lbl"><span class="dot" style="background:var(--coral-500)"></span>Bird</div>
+      <div class="val mono" id="kpiBird">-</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="section-title">แนวโน้มจำนวนเครื่องต่อรอบ (ทุกวันที่บันทึก)</div>
+    <div class="chart-box"><canvas id="trendChart"></canvas></div>
+    <div class="legend-row" id="trendLegend"></div>
+  </div>
+
+  <div class="panel">
+    <div class="section-title">สรุปรวมแยกตามหน่วยงาน / ตึก (ทุกช่วงเวลา)</div>
+    <div class="ward-grid" id="wardGrid"></div>
+  </div>
+
+  <div class="panel">
+    <div class="section-title">ดูรายละเอียดแยกตามวัน — คลิกเดือนเพื่อกาง/ยุบ แล้วเลือกวันที่</div>
+    <div class="explorer">
+      <div class="date-nav" id="dateNav"></div>
+      <div id="dateDetail"></div>
+    </div>
+  </div>
+
+  <footer>Round Ventilator Dashboard &middot; ซิงก์ข้อมูลสดจาก Google Sheet ที่ publish to web &middot; หากเชื่อมต่อไม่ได้จะใช้ข้อมูล snapshot ล่าสุดที่ฝังไว้ในไฟล์</footer>
+</div>
+
+<script id="__fallback__" type="application/json">{"wards": ["EENT", "ICU 100", "Med ชาย", "Med ญ", "Picu", "Semi", "TM", "กจ2", "กจ3", "กจ4", "ญ8", "ดบ", "ดล", "ศัลยกรรมกระดูก", "ศัลย์ ชาย", "ศัลย์ หญิง"], "types": ["C2", "High flow", "Bird"], "dates": ["2025-01-06", "2025-01-07", "2025-01-08", "2025-01-09", "2025-01-10", "2025-01-11", "2025-01-12", "2025-01-13", "2025-01-14", "2025-01-15", "2025-01-16", "2025-01-17", "2025-01-18", "2025-01-19", "2025-01-20", "2025-01-22", "2025-01-24", "2025-01-27", "2025-01-29", "2025-01-31", "2025-02-03", "2025-02-05", "2025-02-07", "2025-02-10", "2025-02-17", "2025-02-19", "2025-02-21", "2025-02-24", "2025-02-26", "2025-02-28", "2025-03-03", "2025-03-05", "2025-03-07", "2025-03-10", "2025-03-12", "2025-03-14", "2025-03-17", "2025-03-19", "2025-03-21", "2025-03-24", "2025-03-26", "2025-03-31", "2025-04-02", "2025-04-09", "2025-04-11", "2025-04-18", "2025-04-21", "2025-04-23", "2025-04-25", "2025-04-28", "2025-05-02", "2025-05-07", "2025-05-14", "2025-05-19", "2025-05-21", "2025-05-23", "2025-05-26", "2025-05-28", "2025-06-04", "2025-06-06", "2025-06-09", "2025-06-11", "2025-06-13", "2025-06-16", "2025-06-18", "2025-06-20", "2025-06-23", "2025-06-25", "2025-06-30", "2025-07-02", "2025-07-07", "2025-07-21", "2025-07-23", "2025-09-01", "2025-09-03", "2025-09-08", "2025-09-10", "2025-09-17", "2025-09-22", "2025-09-24", "2025-09-29", "2025-10-01", "2025-10-06", "2025-10-08", "2025-10-20", "2025-10-22", "2025-10-27", "2025-10-29", "2025-11-03", "2025-11-05", "2025-11-10", "2025-11-12", "2025-11-17", "2025-11-19", "2025-11-24", "2025-11-26", "2025-12-08", "2025-12-15", "2025-12-17", "2025-12-22", "2025-12-24", "2025-12-29", "2026-01-05", "2026-01-07", "2026-01-12", "2026-01-14", "2026-01-19", "2026-01-21", "2026-01-26", "2026-01-28", "2026-02-02", "2026-02-04", "2026-02-09", "2026-02-16", "2026-02-18", "2026-02-23", "2026-02-25", "2026-03-02", "2026-03-04", "2026-03-09", "2026-03-11", "2026-03-16", "2026-03-18", "2026-03-23", "2026-03-25", "2026-03-30", "2026-04-01", "2026-04-08", "2026-04-20", "2026-04-22", "2026-04-23", "2026-04-27", "2026-04-29", "2026-05-06", "2026-05-11", "2026-05-18", "2026-05-20", "2026-05-25", "2026-05-27", "2026-06-08", "2026-06-10", "2026-06-17", "2026-06-22", "2026-06-24", "2026-07-20", "2026-07-27"], "perDate": {"2025-01-06": {"wards": {"Med ชาย": {"C2": 7, "High flow": 3, "Bird": 1, "total": 11}, "Med ญ": {"C2": 0, "High flow": 2, "Bird": 1, "total": 3}, "TM": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ2": {"C2": 6, "High flow": 3, "Bird": 2, "total": 11}, "กจ3": {"C2": 10, "High flow": 1, "Bird": 2, "total": 13}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 2, "total": 5}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 2, "total": 6}}, "totals": {"C2": 34, "High flow": 10, "Bird": 10, "total": 54}}, "2025-01-07": {"wards": {"Med ญ": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "2025-01-08": {"wards": {"Med ชาย": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "Med ญ": {"C2": 11, "High flow": 5, "Bird": 3, "total": 19}, "TM": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ2": {"C2": 8, "High flow": 3, "Bird": 0, "total": 11}, "กจ3": {"C2": 4, "High flow": 1, "Bird": 1, "total": 6}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 1, "total": 5}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 1, "total": 4}}, "totals": {"C2": 42, "High flow": 14, "Bird": 6, "total": 62}}, "2025-01-09": {"wards": {"Med ญ": {"C2": 0, "High flow": 0, "Bird": 1, "total": 1}}, "totals": {"C2": 0, "High flow": 0, "Bird": 1, "total": 1}}, "2025-01-10": {"wards": {"Med ชาย": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "Med ญ": {"C2": 6, "High flow": 5, "Bird": 3, "total": 14}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 6, "High flow": 5, "Bird": 0, "total": 11}, "กจ3": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 1, "total": 4}}, "totals": {"C2": 38, "High flow": 15, "Bird": 4, "total": 57}}, "2025-01-11": {"wards": {"Med ญ": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "2025-01-12": {"wards": {"Med ญ": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}}, "totals": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}}, "2025-01-13": {"wards": {"Med ชาย": {"C2": 8, "High flow": 6, "Bird": 4, "total": 18}, "Med ญ": {"C2": 7, "High flow": 4, "Bird": 2, "total": 13}, "TM": {"C2": 5, "High flow": 0, "Bird": 3, "total": 8}, "กจ2": {"C2": 13, "High flow": 2, "Bird": 4, "total": 19}, "กจ3": {"C2": 6, "High flow": 1, "Bird": 1, "total": 8}, "ศัลย์ ชาย": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "ศัลย์ หญิง": {"C2": 1, "High flow": 1, "Bird": 1, "total": 3}}, "totals": {"C2": 46, "High flow": 15, "Bird": 15, "total": 76}}, "2025-01-14": {"wards": {"Med ญ": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "2025-01-15": {"wards": {"Med ญ": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "2025-01-16": {"wards": {"Med ญ": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "2025-01-17": {"wards": {"Med ชาย": {"C2": 4, "High flow": 5, "Bird": 2, "total": 11}, "Med ญ": {"C2": 7, "High flow": 4, "Bird": 2, "total": 13}, "TM": {"C2": 7, "High flow": 0, "Bird": 0, "total": 7}, "กจ2": {"C2": 7, "High flow": 3, "Bird": 1, "total": 11}, "กจ3": {"C2": 8, "High flow": 3, "Bird": 1, "total": 12}, "ศัลย์ ชาย": {"C2": 6, "High flow": 0, "Bird": 2, "total": 8}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 1, "total": 3}}, "totals": {"C2": 41, "High flow": 15, "Bird": 9, "total": 65}}, "2025-01-18": {"wards": {"Med ญ": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "2025-01-19": {"wards": {"Med ญ": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}}, "totals": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}}, "2025-01-20": {"wards": {"Med ชาย": {"C2": 7, "High flow": 4, "Bird": 3, "total": 14}, "Med ญ": {"C2": 8, "High flow": 6, "Bird": 4, "total": 18}, "TM": {"C2": 8, "High flow": 1, "Bird": 0, "total": 9}, "กจ2": {"C2": 6, "High flow": 5, "Bird": 1, "total": 12}, "กจ3": {"C2": 7, "High flow": 4, "Bird": 3, "total": 14}, "ศัลย์ ชาย": {"C2": 7, "High flow": 0, "Bird": 1, "total": 8}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 2, "total": 4}}, "totals": {"C2": 45, "High flow": 20, "Bird": 14, "total": 79}}, "2025-01-22": {"wards": {"Med ชาย": {"C2": 9, "High flow": 4, "Bird": 2, "total": 15}, "Med ญ": {"C2": 10, "High flow": 7, "Bird": 0, "total": 17}, "TM": {"C2": 7, "High flow": 1, "Bird": 1, "total": 9}, "กจ2": {"C2": 3, "High flow": 3, "Bird": 3, "total": 9}, "กจ3": {"C2": 9, "High flow": 3, "Bird": 3, "total": 15}, "ศัลย์ ชาย": {"C2": 6, "High flow": 0, "Bird": 2, "total": 8}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 1, "total": 3}}, "totals": {"C2": 46, "High flow": 18, "Bird": 12, "total": 76}}, "2025-01-24": {"wards": {"Med ชาย": {"C2": 7, "High flow": 1, "Bird": 4, "total": 12}, "Med ญ": {"C2": 8, "High flow": 6, "Bird": 1, "total": 15}, "TM": {"C2": 8, "High flow": 0, "Bird": 5, "total": 13}, "กจ2": {"C2": 9, "High flow": 6, "Bird": 3, "total": 18}, "กจ3": {"C2": 7, "High flow": 3, "Bird": 2, "total": 12}, "ศัลย์ ชาย": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 1, "total": 3}}, "totals": {"C2": 46, "High flow": 16, "Bird": 16, "total": 78}}, "2025-01-27": {"wards": {"Med ชาย": {"C2": 9, "High flow": 2, "Bird": 3, "total": 14}, "Med ญ": {"C2": 10, "High flow": 6, "Bird": 1, "total": 17}, "TM": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "กจ2": {"C2": 7, "High flow": 2, "Bird": 1, "total": 10}, "กจ3": {"C2": 7, "High flow": 2, "Bird": 2, "total": 11}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 1, "total": 3}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 1, "total": 5}}, "totals": {"C2": 45, "High flow": 16, "Bird": 9, "total": 70}}, "2025-01-29": {"wards": {"Med ชาย": {"C2": 7, "High flow": 3, "Bird": 1, "total": 11}, "Med ญ": {"C2": 12, "High flow": 2, "Bird": 2, "total": 16}, "TM": {"C2": 8, "High flow": 0, "Bird": 0, "total": 8}, "กจ2": {"C2": 8, "High flow": 2, "Bird": 1, "total": 11}, "กจ3": {"C2": 6, "High flow": 3, "Bird": 1, "total": 10}, "ดล": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 2, "Bird": 1, "total": 5}}, "totals": {"C2": 46, "High flow": 13, "Bird": 6, "total": 65}}, "2025-01-31": {"wards": {"ICU 100": {"C2": 0, "High flow": 3, "Bird": 0, "total": 3}, "Med ชาย": {"C2": 10, "High flow": 4, "Bird": 0, "total": 14}, "Med ญ": {"C2": 12, "High flow": 1, "Bird": 1, "total": 14}, "TM": {"C2": 5, "High flow": 0, "Bird": 1, "total": 6}, "กจ2": {"C2": 9, "High flow": 2, "Bird": 1, "total": 12}, "กจ3": {"C2": 3, "High flow": 3, "Bird": 2, "total": 8}, "ดล": {"C2": 0, "High flow": 4, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 1, "High flow": 2, "Bird": 1, "total": 4}}, "totals": {"C2": 43, "High flow": 20, "Bird": 6, "total": 69}}, "2025-02-03": {"wards": {"ICU 100": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "Med ชาย": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "Med ญ": {"C2": 11, "High flow": 4, "Bird": 0, "total": 15}, "TM": {"C2": 7, "High flow": 1, "Bird": 0, "total": 8}, "กจ2": {"C2": 6, "High flow": 1, "Bird": 1, "total": 8}, "กจ3": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "ดล": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 1, "total": 4}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 2, "total": 6}}, "totals": {"C2": 40, "High flow": 20, "Bird": 4, "total": 64}}, "2025-02-05": {"wards": {"ICU 100": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "Med ชาย": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "Med ญ": {"C2": 4, "High flow": 5, "Bird": 2, "total": 11}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 4, "High flow": 3, "Bird": 0, "total": 7}, "กจ3": {"C2": 6, "High flow": 6, "Bird": 0, "total": 12}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}}, "totals": {"C2": 32, "High flow": 21, "Bird": 2, "total": 55}}, "2025-02-07": {"wards": {"ICU 100": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 4, "High flow": 5, "Bird": 0, "total": 9}, "Med ญ": {"C2": 4, "High flow": 6, "Bird": 1, "total": 11}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "กจ3": {"C2": 2, "High flow": 4, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 27, "High flow": 20, "Bird": 1, "total": 48}}, "2025-02-10": {"wards": {"Med ชาย": {"C2": 8, "High flow": 3, "Bird": 0, "total": 11}, "Med ญ": {"C2": 9, "High flow": 5, "Bird": 0, "total": 14}, "TM": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ2": {"C2": 6, "High flow": 3, "Bird": 0, "total": 9}, "กจ3": {"C2": 6, "High flow": 6, "Bird": 0, "total": 12}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 1, "total": 4}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 40, "High flow": 17, "Bird": 1, "total": 58}}, "2025-02-17": {"wards": {"Med ชาย": {"C2": 7, "High flow": 1, "Bird": 0, "total": 8}, "Med ญ": {"C2": 8, "High flow": 3, "Bird": 0, "total": 11}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 7, "High flow": 4, "Bird": 1, "total": 12}, "กจ3": {"C2": 7, "High flow": 5, "Bird": 1, "total": 13}, "ศัลย์ ชาย": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}}, "totals": {"C2": 40, "High flow": 13, "Bird": 2, "total": 55}}, "2025-02-19": {"wards": {"Med ชาย": {"C2": 9, "High flow": 4, "Bird": 0, "total": 13}, "Med ญ": {"C2": 8, "High flow": 5, "Bird": 0, "total": 13}, "TM": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}, "กจ2": {"C2": 9, "High flow": 1, "Bird": 0, "total": 10}, "กจ3": {"C2": 6, "High flow": 4, "Bird": 0, "total": 10}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}}, "totals": {"C2": 40, "High flow": 17, "Bird": 0, "total": 57}}, "2025-02-21": {"wards": {"ICU 100": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "Med ชาย": {"C2": 5, "High flow": 3, "Bird": 0, "total": 8}, "Med ญ": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "TM": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "กจ2": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "กจ3": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}}, "totals": {"C2": 32, "High flow": 15, "Bird": 0, "total": 47}}, "2025-02-24": {"wards": {"ICU 100": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 10, "High flow": 3, "Bird": 0, "total": 13}, "Med ญ": {"C2": 6, "High flow": 6, "Bird": 0, "total": 12}, "TM": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "กจ2": {"C2": 4, "High flow": 3, "Bird": 0, "total": 7}, "กจ3": {"C2": 7, "High flow": 1, "Bird": 0, "total": 8}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}}, "totals": {"C2": 35, "High flow": 15, "Bird": 0, "total": 50}}, "2025-02-26": {"wards": {"ICU 100": {"C2": 0, "High flow": 3, "Bird": 0, "total": 3}, "Med ชาย": {"C2": 9, "High flow": 4, "Bird": 0, "total": 13}, "Med ญ": {"C2": 5, "High flow": 7, "Bird": 0, "total": 12}, "TM": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "กจ2": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "กจ3": {"C2": 7, "High flow": 1, "Bird": 0, "total": 8}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 2, "total": 3}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}}, "totals": {"C2": 33, "High flow": 17, "Bird": 2, "total": 52}}, "2025-02-28": {"wards": {"Med ชาย": {"C2": 9, "High flow": 5, "Bird": 0, "total": 14}, "Med ญ": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "TM": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "กจ2": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "กจ3": {"C2": 8, "High flow": 1, "Bird": 0, "total": 9}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}}, "totals": {"C2": 41, "High flow": 14, "Bird": 0, "total": 55}}, "2025-03-03": {"wards": {"Med ชาย": {"C2": 10, "High flow": 5, "Bird": 0, "total": 15}, "Med ญ": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "TM": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "กจ2": {"C2": 3, "High flow": 4, "Bird": 0, "total": 7}, "กจ3": {"C2": 9, "High flow": 3, "Bird": 0, "total": 12}, "ศัลย์ ชาย": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}}, "totals": {"C2": 37, "High flow": 18, "Bird": 0, "total": 55}}, "2025-03-05": {"wards": {"Med ชาย": {"C2": 7, "High flow": 6, "Bird": 0, "total": 13}, "Med ญ": {"C2": 9, "High flow": 2, "Bird": 0, "total": 11}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 4, "High flow": 4, "Bird": 0, "total": 8}, "กจ3": {"C2": 9, "High flow": 2, "Bird": 0, "total": 11}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}}, "totals": {"C2": 39, "High flow": 14, "Bird": 0, "total": 53}}, "2025-03-07": {"wards": {"Med ชาย": {"C2": 7, "High flow": 3, "Bird": 1, "total": 11}, "Med ญ": {"C2": 5, "High flow": 3, "Bird": 0, "total": 8}, "TM": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "กจ2": {"C2": 4, "High flow": 5, "Bird": 0, "total": 9}, "กจ3": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}}, "totals": {"C2": 30, "High flow": 15, "Bird": 1, "total": 46}}, "2025-03-10": {"wards": {"ICU 100": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "Med ชาย": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "Med ญ": {"C2": 8, "High flow": 2, "Bird": 0, "total": 10}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "กจ3": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "ดล": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 5, "High flow": 0, "Bird": 1, "total": 6}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 41, "High flow": 14, "Bird": 1, "total": 56}}, "2025-03-12": {"wards": {"ญ8": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ดล": {"C2": 0, "High flow": 5, "Bird": 0, "total": 5}}, "totals": {"C2": 0, "High flow": 6, "Bird": 0, "total": 6}}, "2025-03-14": {"wards": {"ICU 100": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "Med ชาย": {"C2": 12, "High flow": 3, "Bird": 0, "total": 15}, "Med ญ": {"C2": 6, "High flow": 2, "Bird": 0, "total": 8}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 7, "High flow": 9, "Bird": 0, "total": 16}, "กจ3": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 1, "total": 4}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 39, "High flow": 17, "Bird": 1, "total": 57}}, "2025-03-17": {"wards": {"Med ชาย": {"C2": 11, "High flow": 3, "Bird": 0, "total": 14}, "Med ญ": {"C2": 7, "High flow": 4, "Bird": 0, "total": 11}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 6, "High flow": 5, "Bird": 0, "total": 11}, "กจ3": {"C2": 5, "High flow": 4, "Bird": 0, "total": 9}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 2, "total": 5}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 39, "High flow": 16, "Bird": 2, "total": 57}}, "2025-03-19": {"wards": {"Med ชาย": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "Med ญ": {"C2": 7, "High flow": 4, "Bird": 0, "total": 11}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 3, "High flow": 5, "Bird": 0, "total": 8}, "กจ3": {"C2": 6, "High flow": 4, "Bird": 0, "total": 10}, "ศัลย์ ชาย": {"C2": 4, "High flow": 1, "Bird": 2, "total": 7}, "ศัลย์ หญิง": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}}, "totals": {"C2": 37, "High flow": 18, "Bird": 2, "total": 57}}, "2025-03-21": {"wards": {"Med ชาย": {"C2": 6, "High flow": 4, "Bird": 0, "total": 10}, "Med ญ": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 1, "total": 5}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}}, "totals": {"C2": 19, "High flow": 11, "Bird": 1, "total": 31}}, "2025-03-24": {"wards": {"Med ชาย": {"C2": 7, "High flow": 7, "Bird": 1, "total": 15}, "Med ญ": {"C2": 11, "High flow": 6, "Bird": 4, "total": 21}, "TM": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "กจ2": {"C2": 2, "High flow": 2, "Bird": 0, "total": 4}, "กจ3": {"C2": 13, "High flow": 3, "Bird": 0, "total": 16}, "ดบ": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "ดล": {"C2": 0, "High flow": 3, "Bird": 0, "total": 3}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}}, "totals": {"C2": 42, "High flow": 26, "Bird": 5, "total": 73}}, "2025-03-26": {"wards": {"ICU 100": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 7, "High flow": 2, "Bird": 1, "total": 10}, "Med ญ": {"C2": 6, "High flow": 5, "Bird": 1, "total": 12}, "TM": {"C2": 4, "High flow": 0, "Bird": 2, "total": 6}, "กจ2": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "กจ3": {"C2": 15, "High flow": 2, "Bird": 0, "total": 17}, "ศัลย์ ชาย": {"C2": 2, "High flow": 2, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}}, "totals": {"C2": 43, "High flow": 15, "Bird": 4, "total": 62}}, "2025-03-31": {"wards": {"ICU 100": {"C2": 0, "High flow": 3, "Bird": 0, "total": 3}, "Med ชาย": {"C2": 6, "High flow": 10, "Bird": 1, "total": 17}, "Med ญ": {"C2": 12, "High flow": 5, "Bird": 0, "total": 17}, "TM": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ2": {"C2": 9, "High flow": 1, "Bird": 0, "total": 10}, "กจ3": {"C2": 8, "High flow": 2, "Bird": 1, "total": 11}, "ดบ": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ดล": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 45, "High flow": 25, "Bird": 2, "total": 72}}, "2025-04-02": {"wards": {"ICU 100": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "Med ชาย": {"C2": 4, "High flow": 6, "Bird": 0, "total": 10}, "Med ญ": {"C2": 12, "High flow": 1, "Bird": 2, "total": 15}, "TM": {"C2": 4, "High flow": 0, "Bird": 1, "total": 5}, "กจ2": {"C2": 9, "High flow": 4, "Bird": 2, "total": 15}, "กจ3": {"C2": 10, "High flow": 1, "Bird": 3, "total": 14}, "ศัลย์ ชาย": {"C2": 0, "High flow": 3, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 42, "High flow": 17, "Bird": 8, "total": 67}}, "2025-04-09": {"wards": {"ICU 100": {"C2": 0, "High flow": 3, "Bird": 0, "total": 3}, "Med ชาย": {"C2": 7, "High flow": 2, "Bird": 0, "total": 9}, "Med ญ": {"C2": 8, "High flow": 3, "Bird": 1, "total": 12}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ3": {"C2": 10, "High flow": 1, "Bird": 1, "total": 12}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}}, "totals": {"C2": 41, "High flow": 11, "Bird": 2, "total": 54}}, "2025-04-11": {"wards": {"ICU 100": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "Med ชาย": {"C2": 9, "High flow": 2, "Bird": 0, "total": 11}, "Med ญ": {"C2": 10, "High flow": 1, "Bird": 1, "total": 12}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ3": {"C2": 7, "High flow": 6, "Bird": 1, "total": 14}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}}, "totals": {"C2": 42, "High flow": 13, "Bird": 2, "total": 57}}, "2025-04-18": {"wards": {"ICU 100": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 9, "High flow": 3, "Bird": 0, "total": 12}, "Med ญ": {"C2": 11, "High flow": 7, "Bird": 0, "total": 18}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 9, "High flow": 0, "Bird": 1, "total": 10}, "กจ3": {"C2": 5, "High flow": 2, "Bird": 2, "total": 9}, "ดบ": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 4, "High flow": 4, "Bird": 0, "total": 8}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 43, "High flow": 18, "Bird": 3, "total": 64}}, "2025-04-21": {"wards": {"Med ชาย": {"C2": 8, "High flow": 2, "Bird": 0, "total": 10}, "Med ญ": {"C2": 8, "High flow": 3, "Bird": 0, "total": 11}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "กจ3": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "ดล": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 2, "High flow": 2, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 33, "High flow": 11, "Bird": 0, "total": 44}}, "2025-04-23": {"wards": {"ICU 100": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 5, "High flow": 4, "Bird": 0, "total": 9}, "Med ญ": {"C2": 10, "High flow": 5, "Bird": 1, "total": 16}, "TM": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "กจ2": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "กจ3": {"C2": 5, "High flow": 1, "Bird": 2, "total": 8}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 31, "High flow": 15, "Bird": 3, "total": 49}}, "2025-04-25": {"wards": {"Med ชาย": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "Med ญ": {"C2": 11, "High flow": 5, "Bird": 1, "total": 17}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "กจ3": {"C2": 4, "High flow": 2, "Bird": 1, "total": 7}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 29, "High flow": 11, "Bird": 2, "total": 42}}, "2025-04-28": {"wards": {"ICU 100": {"C2": 0, "High flow": 3, "Bird": 0, "total": 3}, "Med ชาย": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "Med ญ": {"C2": 9, "High flow": 4, "Bird": 1, "total": 14}, "TM": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "กจ2": {"C2": 3, "High flow": 5, "Bird": 1, "total": 9}, "กจ3": {"C2": 5, "High flow": 2, "Bird": 2, "total": 9}, "ดบ": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ดล": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}}, "totals": {"C2": 28, "High flow": 19, "Bird": 4, "total": 51}}, "2025-05-02": {"wards": {"Med ชาย": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "Med ญ": {"C2": 11, "High flow": 3, "Bird": 0, "total": 14}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "กจ3": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}}, "totals": {"C2": 35, "High flow": 6, "Bird": 0, "total": 41}}, "2025-05-07": {"wards": {"ICU 100": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 4, "High flow": 4, "Bird": 1, "total": 9}, "Med ญ": {"C2": 8, "High flow": 3, "Bird": 0, "total": 11}, "TM": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "กจ2": {"C2": 8, "High flow": 5, "Bird": 0, "total": 13}, "กจ3": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}, "ดล": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}}, "totals": {"C2": 33, "High flow": 18, "Bird": 1, "total": 52}}, "2025-05-14": {"wards": {"ICU 100": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "Med ชาย": {"C2": 6, "High flow": 2, "Bird": 0, "total": 8}, "Med ญ": {"C2": 8, "High flow": 1, "Bird": 1, "total": 10}, "TM": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "กจ2": {"C2": 6, "High flow": 4, "Bird": 0, "total": 10}, "กจ3": {"C2": 4, "High flow": 4, "Bird": 0, "total": 8}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 32, "High flow": 16, "Bird": 1, "total": 49}}, "2025-05-19": {"wards": {"EENT": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 6, "High flow": 3, "Bird": 2, "total": 11}, "Med ญ": {"C2": 6, "High flow": 6, "Bird": 0, "total": 12}, "Picu": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "TM": {"C2": 7, "High flow": 0, "Bird": 0, "total": 7}, "กจ2": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "กจ3": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ดล": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 34, "High flow": 15, "Bird": 2, "total": 51}}, "2025-05-21": {"wards": {"ICU 100": {"C2": 0, "High flow": 3, "Bird": 0, "total": 3}, "Med ชาย": {"C2": 7, "High flow": 0, "Bird": 2, "total": 9}, "Med ญ": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "TM": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "กจ2": {"C2": 10, "High flow": 2, "Bird": 0, "total": 12}, "กจ3": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 37, "High flow": 10, "Bird": 2, "total": 49}}, "2025-05-23": {"wards": {"ICU 100": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "Med ชาย": {"C2": 6, "High flow": 3, "Bird": 3, "total": 12}, "Med ญ": {"C2": 6, "High flow": 3, "Bird": 0, "total": 9}, "Picu": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "กจ3": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}}, "totals": {"C2": 27, "High flow": 13, "Bird": 3, "total": 43}}, "2025-05-26": {"wards": {"Med ชาย": {"C2": 11, "High flow": 2, "Bird": 0, "total": 13}, "Med ญ": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "TM": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "กจ2": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "กจ3": {"C2": 1, "High flow": 5, "Bird": 0, "total": 6}, "กจ4": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 30, "High flow": 9, "Bird": 0, "total": 39}}, "2025-05-28": {"wards": {"ICU 100": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "Med ญ": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 4, "High flow": 4, "Bird": 1, "total": 9}, "กจ3": {"C2": 0, "High flow": 4, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 21, "High flow": 15, "Bird": 1, "total": 37}}, "2025-06-04": {"wards": {"Med ชาย": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "Med ญ": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 6, "High flow": 6, "Bird": 0, "total": 12}, "กจ3": {"C2": 1, "High flow": 4, "Bird": 0, "total": 5}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 24, "High flow": 13, "Bird": 0, "total": 37}}, "2025-06-06": {"wards": {"Med ชาย": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "Med ญ": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "กจ3": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 26, "High flow": 15, "Bird": 0, "total": 41}}, "2025-06-09": {"wards": {"Med ชาย": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "Med ญ": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}, "กจ3": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 23, "High flow": 13, "Bird": 0, "total": 36}}, "2025-06-11": {"wards": {"Med ชาย": {"C2": 9, "High flow": 6, "Bird": 0, "total": 15}, "Med ญ": {"C2": 5, "High flow": 8, "Bird": 0, "total": 13}, "Semi": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "TM": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "กจ2": {"C2": 6, "High flow": 2, "Bird": 0, "total": 8}, "กจ3": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "ดบ": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}}, "totals": {"C2": 27, "High flow": 22, "Bird": 0, "total": 49}}, "2025-06-13": {"wards": {"Med ชาย": {"C2": 11, "High flow": 2, "Bird": 1, "total": 14}, "Med ญ": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "TM": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "กจ2": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "กจ3": {"C2": 1, "High flow": 2, "Bird": 0, "total": 3}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 25, "High flow": 9, "Bird": 1, "total": 35}}, "2025-06-16": {"wards": {"Med ชาย": {"C2": 9, "High flow": 4, "Bird": 0, "total": 13}, "Med ญ": {"C2": 8, "High flow": 9, "Bird": 0, "total": 17}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "กจ3": {"C2": 2, "High flow": 5, "Bird": 0, "total": 7}, "ศัลย์ ชาย": {"C2": 1, "High flow": 2, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 32, "High flow": 21, "Bird": 0, "total": 53}}, "2025-06-18": {"wards": {"Med ชาย": {"C2": 9, "High flow": 5, "Bird": 0, "total": 14}, "Med ญ": {"C2": 8, "High flow": 9, "Bird": 0, "total": 17}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 7, "High flow": 2, "Bird": 0, "total": 9}, "กจ3": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ ชาย": {"C2": 1, "High flow": 3, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 30, "High flow": 20, "Bird": 0, "total": 50}}, "2025-06-20": {"wards": {"Med ชาย": {"C2": 10, "High flow": 9, "Bird": 0, "total": 19}, "Med ญ": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "ศัลย์ ชาย": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}}, "totals": {"C2": 20, "High flow": 17, "Bird": 0, "total": 37}}, "2025-06-23": {"wards": {"Med ชาย": {"C2": 10, "High flow": 4, "Bird": 0, "total": 14}, "Med ญ": {"C2": 8, "High flow": 7, "Bird": 0, "total": 15}, "TM": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "กจ2": {"C2": 6, "High flow": 2, "Bird": 0, "total": 8}, "กจ3": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "ดบ": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 1, "High flow": 4, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}}, "totals": {"C2": 33, "High flow": 20, "Bird": 0, "total": 53}}, "2025-06-25": {"wards": {"Med ชาย": {"C2": 12, "High flow": 3, "Bird": 0, "total": 15}, "Med ญ": {"C2": 6, "High flow": 6, "Bird": 0, "total": 12}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 8, "High flow": 3, "Bird": 0, "total": 11}, "กจ3": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ ชาย": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}}, "totals": {"C2": 37, "High flow": 16, "Bird": 0, "total": 53}}, "2025-06-30": {"wards": {"Med ชาย": {"C2": 9, "High flow": 3, "Bird": 0, "total": 12}, "Med ญ": {"C2": 7, "High flow": 4, "Bird": 0, "total": 11}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 8, "High flow": 5, "Bird": 0, "total": 13}, "กจ3": {"C2": 4, "High flow": 3, "Bird": 0, "total": 7}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 35, "High flow": 15, "Bird": 0, "total": 50}}, "2025-07-02": {"wards": {"Med ชาย": {"C2": 8, "High flow": 0, "Bird": 0, "total": 8}, "Med ญ": {"C2": 11, "High flow": 3, "Bird": 1, "total": 15}, "TM": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ2": {"C2": 5, "High flow": 2, "Bird": 1, "total": 8}, "กจ3": {"C2": 4, "High flow": 5, "Bird": 0, "total": 9}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 38, "High flow": 10, "Bird": 2, "total": 50}}, "2025-07-07": {"wards": {"Med ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "Med ญ": {"C2": 10, "High flow": 5, "Bird": 0, "total": 15}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 3, "High flow": 3, "Bird": 1, "total": 7}, "กจ3": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 26, "High flow": 9, "Bird": 1, "total": 36}}, "2025-07-21": {"wards": {"Med ชาย": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "Med ญ": {"C2": 6, "High flow": 3, "Bird": 0, "total": 9}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "กจ3": {"C2": 3, "High flow": 4, "Bird": 0, "total": 7}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}}, "totals": {"C2": 25, "High flow": 13, "Bird": 0, "total": 38}}, "2025-07-23": {"wards": {"Med ชาย": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "Med ญ": {"C2": 8, "High flow": 6, "Bird": 0, "total": 14}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "กจ3": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 2, "High flow": 2, "Bird": 0, "total": 4}}, "totals": {"C2": 27, "High flow": 11, "Bird": 0, "total": 38}}, "2025-09-01": {"wards": {"Med ชาย": {"C2": 5, "High flow": 5, "Bird": 2, "total": 12}, "Med ญ": {"C2": 6, "High flow": 3, "Bird": 2, "total": 11}, "ศัลย์ ชาย": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}}, "totals": {"C2": 19, "High flow": 10, "Bird": 4, "total": 33}}, "2025-09-03": {"wards": {"Med ชาย": {"C2": 6, "High flow": 3, "Bird": 0, "total": 9}, "Med ญ": {"C2": 7, "High flow": 1, "Bird": 1, "total": 9}, "TM": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}, "กจ2": {"C2": 10, "High flow": 4, "Bird": 0, "total": 14}, "กจ3": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}}, "totals": {"C2": 36, "High flow": 13, "Bird": 1, "total": 50}}, "2025-09-08": {"wards": {"Med ชาย": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "Med ญ": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "TM": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}, "กจ2": {"C2": 6, "High flow": 5, "Bird": 0, "total": 11}, "กจ3": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 30, "High flow": 14, "Bird": 0, "total": 44}}, "2025-09-10": {"wards": {"Med ชาย": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "Med ญ": {"C2": 5, "High flow": 3, "Bird": 0, "total": 8}, "TM": {"C2": 3, "High flow": 1, "Bird": 1, "total": 5}, "กจ2": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "กจ3": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 1, "total": 3}}, "totals": {"C2": 32, "High flow": 17, "Bird": 2, "total": 51}}, "2025-09-17": {"wards": {"Med ชาย": {"C2": 3, "High flow": 4, "Bird": 0, "total": 7}, "Med ญ": {"C2": 5, "High flow": 6, "Bird": 0, "total": 11}, "TM": {"C2": 7, "High flow": 2, "Bird": 0, "total": 9}, "กจ2": {"C2": 3, "High flow": 8, "Bird": 0, "total": 11}, "กจ3": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "ศัลย์ ชาย": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}}, "totals": {"C2": 25, "High flow": 24, "Bird": 0, "total": 49}}, "2025-09-22": {"wards": {"Med ชาย": {"C2": 4, "High flow": 4, "Bird": 0, "total": 8}, "Med ญ": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "TM": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "กจ2": {"C2": 7, "High flow": 4, "Bird": 0, "total": 11}, "กจ3": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}}, "totals": {"C2": 26, "High flow": 11, "Bird": 0, "total": 37}}, "2025-09-24": {"wards": {"Med ชาย": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "Med ญ": {"C2": 11, "High flow": 2, "Bird": 0, "total": 13}, "TM": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "กจ2": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "กจ3": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 35, "High flow": 18, "Bird": 0, "total": 53}}, "2025-09-29": {"wards": {"Med ชาย": {"C2": 8, "High flow": 2, "Bird": 0, "total": 10}, "Med ญ": {"C2": 9, "High flow": 3, "Bird": 0, "total": 12}, "TM": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "กจ2": {"C2": 7, "High flow": 7, "Bird": 0, "total": 14}, "กจ3": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}}, "totals": {"C2": 42, "High flow": 16, "Bird": 0, "total": 58}}, "2025-10-01": {"wards": {"Med ชาย": {"C2": 7, "High flow": 6, "Bird": 0, "total": 13}, "Med ญ": {"C2": 10, "High flow": 1, "Bird": 1, "total": 12}, "TM": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "กจ2": {"C2": 4, "High flow": 6, "Bird": 0, "total": 10}, "กจ3": {"C2": 3, "High flow": 5, "Bird": 0, "total": 8}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}}, "totals": {"C2": 34, "High flow": 21, "Bird": 1, "total": 56}}, "2025-10-06": {"wards": {"Med ชาย": {"C2": 8, "High flow": 1, "Bird": 0, "total": 9}, "Med ญ": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 4, "High flow": 1, "Bird": 1, "total": 6}, "กจ3": {"C2": 3, "High flow": 4, "Bird": 0, "total": 7}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 30, "High flow": 10, "Bird": 1, "total": 41}}, "2025-10-08": {"wards": {"Med ชาย": {"C2": 11, "High flow": 4, "Bird": 1, "total": 16}, "Med ญ": {"C2": 10, "High flow": 0, "Bird": 0, "total": 10}, "TM": {"C2": 8, "High flow": 0, "Bird": 0, "total": 8}, "กจ2": {"C2": 11, "High flow": 6, "Bird": 0, "total": 17}, "กจ3": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 0, "High flow": 0, "Bird": 1, "total": 1}}, "totals": {"C2": 44, "High flow": 11, "Bird": 2, "total": 57}}, "2025-10-20": {"wards": {"Med ชาย": {"C2": 12, "High flow": 2, "Bird": 1, "total": 15}, "Med ญ": {"C2": 9, "High flow": 1, "Bird": 1, "total": 11}, "TM": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "กจ2": {"C2": 11, "High flow": 2, "Bird": 0, "total": 13}, "กจ3": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 1, "total": 4}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 45, "High flow": 9, "Bird": 3, "total": 57}}, "2025-10-22": {"wards": {"Med ชาย": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "Med ญ": {"C2": 11, "High flow": 3, "Bird": 0, "total": 14}, "TM": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "กจ2": {"C2": 8, "High flow": 1, "Bird": 0, "total": 9}, "กจ3": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "ศัลย์ ชาย": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}}, "totals": {"C2": 38, "High flow": 13, "Bird": 0, "total": 51}}, "2025-10-27": {"wards": {"EENT": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 10, "High flow": 1, "Bird": 1, "total": 12}, "Med ญ": {"C2": 14, "High flow": 3, "Bird": 2, "total": 19}, "TM": {"C2": 8, "High flow": 0, "Bird": 0, "total": 8}, "กจ2": {"C2": 6, "High flow": 5, "Bird": 0, "total": 11}, "กจ3": {"C2": 5, "High flow": 3, "Bird": 0, "total": 8}, "ศัลย์ ชาย": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 1, "total": 2}}, "totals": {"C2": 49, "High flow": 13, "Bird": 4, "total": 66}}, "2025-10-29": {"wards": {"Med ชาย": {"C2": 7, "High flow": 1, "Bird": 0, "total": 8}, "Med ญ": {"C2": 15, "High flow": 5, "Bird": 0, "total": 20}, "TM": {"C2": 9, "High flow": 0, "Bird": 0, "total": 9}, "กจ2": {"C2": 6, "High flow": 2, "Bird": 0, "total": 8}, "กจ3": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 47, "High flow": 10, "Bird": 0, "total": 57}}, "2025-11-03": {"wards": {"Med ชาย": {"C2": 3, "High flow": 0, "Bird": 1, "total": 4}, "Med ญ": {"C2": 11, "High flow": 2, "Bird": 0, "total": 13}, "TM": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ2": {"C2": 5, "High flow": 4, "Bird": 0, "total": 9}, "กจ3": {"C2": 6, "High flow": 2, "Bird": 0, "total": 8}, "ศัลย์ ชาย": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 36, "High flow": 9, "Bird": 1, "total": 46}}, "2025-11-05": {"wards": {"Med ชาย": {"C2": 6, "High flow": 6, "Bird": 2, "total": 14}, "Med ญ": {"C2": 11, "High flow": 6, "Bird": 0, "total": 17}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ3": {"C2": 6, "High flow": 5, "Bird": 0, "total": 11}, "ศัลย์ ชาย": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 38, "High flow": 18, "Bird": 2, "total": 58}}, "2025-11-10": {"wards": {"Med ชาย": {"C2": 8, "High flow": 3, "Bird": 1, "total": 12}, "Med ญ": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "กจ3": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 38, "High flow": 13, "Bird": 1, "total": 52}}, "2025-11-12": {"wards": {"Med ญ": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 9, "High flow": 0, "Bird": 0, "total": 9}, "กจ3": {"C2": 3, "High flow": 4, "Bird": 0, "total": 7}}, "totals": {"C2": 15, "High flow": 5, "Bird": 0, "total": 20}}, "2025-11-17": {"wards": {"Med ชาย": {"C2": 7, "High flow": 2, "Bird": 0, "total": 9}, "Med ญ": {"C2": 7, "High flow": 2, "Bird": 0, "total": 9}, "TM": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "กจ2": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "กจ3": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}}, "totals": {"C2": 26, "High flow": 11, "Bird": 0, "total": 37}}, "2025-11-19": {"wards": {"Med ญ": {"C2": 7, "High flow": 6, "Bird": 0, "total": 13}}, "totals": {"C2": 7, "High flow": 6, "Bird": 0, "total": 13}}, "2025-11-24": {"wards": {"Med ชาย": {"C2": 9, "High flow": 2, "Bird": 0, "total": 11}, "Med ญ": {"C2": 9, "High flow": 2, "Bird": 0, "total": 11}, "TM": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "กจ2": {"C2": 6, "High flow": 0, "Bird": 1, "total": 7}, "กจ3": {"C2": 9, "High flow": 3, "Bird": 0, "total": 12}, "ศัลย์ ชาย": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 36, "High flow": 8, "Bird": 1, "total": 45}}, "2025-11-26": {"wards": {"EENT": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 11, "High flow": 4, "Bird": 0, "total": 15}, "Med ญ": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 5, "High flow": 0, "Bird": 4, "total": 9}, "กจ3": {"C2": 8, "High flow": 3, "Bird": 0, "total": 11}, "ศัลย์ ชาย": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 1, "total": 3}}, "totals": {"C2": 37, "High flow": 9, "Bird": 5, "total": 51}}, "2025-12-08": {"wards": {"Med ชาย": {"C2": 8, "High flow": 2, "Bird": 0, "total": 10}, "Med ญ": {"C2": 8, "High flow": 2, "Bird": 0, "total": 10}, "TM": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "กจ2": {"C2": 7, "High flow": 3, "Bird": 2, "total": 12}, "กจ3": {"C2": 10, "High flow": 6, "Bird": 0, "total": 16}, "ศัลย์ ชาย": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 36, "High flow": 14, "Bird": 2, "total": 52}}, "2025-12-15": {"wards": {"Med ชาย": {"C2": 8, "High flow": 5, "Bird": 0, "total": 13}, "Med ญ": {"C2": 12, "High flow": 6, "Bird": 0, "total": 18}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 6, "High flow": 3, "Bird": 0, "total": 9}, "กจ3": {"C2": 5, "High flow": 4, "Bird": 0, "total": 9}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 37, "High flow": 19, "Bird": 0, "total": 56}}, "2025-12-17": {"wards": {"Med ชาย": {"C2": 1, "High flow": 5, "Bird": 0, "total": 6}, "Med ญ": {"C2": 9, "High flow": 3, "Bird": 0, "total": 12}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 4, "High flow": 1, "Bird": 1, "total": 6}, "กจ3": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "ศัลย์ ชาย": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 27, "High flow": 15, "Bird": 1, "total": 43}}, "2025-12-22": {"wards": {"Med ชาย": {"C2": 8, "High flow": 6, "Bird": 0, "total": 14}, "Med ญ": {"C2": 10, "High flow": 0, "Bird": 0, "total": 10}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 8, "High flow": 1, "Bird": 0, "total": 9}, "กจ3": {"C2": 7, "High flow": 2, "Bird": 0, "total": 9}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 44, "High flow": 9, "Bird": 0, "total": 53}}, "2025-12-24": {"wards": {"Med ชาย": {"C2": 7, "High flow": 7, "Bird": 0, "total": 14}, "Med ญ": {"C2": 10, "High flow": 2, "Bird": 0, "total": 12}, "TM": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ2": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "กจ3": {"C2": 9, "High flow": 2, "Bird": 0, "total": 11}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 42, "High flow": 16, "Bird": 0, "total": 58}}, "2025-12-29": {"wards": {"Med ชาย": {"C2": 7, "High flow": 2, "Bird": 0, "total": 9}, "Med ญ": {"C2": 10, "High flow": 2, "Bird": 0, "total": 12}, "TM": {"C2": 9, "High flow": 0, "Bird": 0, "total": 9}, "กจ2": {"C2": 8, "High flow": 2, "Bird": 2, "total": 12}, "กจ3": {"C2": 6, "High flow": 2, "Bird": 0, "total": 8}, "ศัลย์ ชาย": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 42, "High flow": 9, "Bird": 2, "total": 53}}, "2026-01-05": {"wards": {"Med ชาย": {"C2": 8, "High flow": 6, "Bird": 2, "total": 16}, "Med ญ": {"C2": 12, "High flow": 1, "Bird": 1, "total": 14}, "TM": {"C2": 8, "High flow": 0, "Bird": 0, "total": 8}, "กจ2": {"C2": 9, "High flow": 4, "Bird": 0, "total": 13}, "กจ3": {"C2": 8, "High flow": 5, "Bird": 0, "total": 13}, "ศัลย์ ชาย": {"C2": 0, "High flow": 2, "Bird": 1, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 47, "High flow": 18, "Bird": 4, "total": 69}}, "2026-01-07": {"wards": {"Med ชาย": {"C2": 7, "High flow": 10, "Bird": 1, "total": 18}, "Med ญ": {"C2": 12, "High flow": 2, "Bird": 0, "total": 14}, "TM": {"C2": 7, "High flow": 0, "Bird": 0, "total": 7}, "กจ2": {"C2": 10, "High flow": 1, "Bird": 1, "total": 12}, "กจ3": {"C2": 7, "High flow": 6, "Bird": 0, "total": 13}, "ศัลย์ ชาย": {"C2": 1, "High flow": 2, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 46, "High flow": 21, "Bird": 2, "total": 69}}, "2026-01-12": {"wards": {"Med ชาย": {"C2": 7, "High flow": 5, "Bird": 1, "total": 13}, "Med ญ": {"C2": 10, "High flow": 2, "Bird": 0, "total": 12}, "TM": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "กจ2": {"C2": 9, "High flow": 2, "Bird": 0, "total": 11}, "กจ3": {"C2": 4, "High flow": 8, "Bird": 0, "total": 12}, "ศัลย์ ชาย": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 39, "High flow": 20, "Bird": 1, "total": 60}}, "2026-01-14": {"wards": {"Med ชาย": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "Med ญ": {"C2": 7, "High flow": 6, "Bird": 0, "total": 13}, "TM": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "กจ2": {"C2": 13, "High flow": 0, "Bird": 0, "total": 13}, "กจ3": {"C2": 8, "High flow": 6, "Bird": 0, "total": 14}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 1, "total": 5}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 1, "total": 5}}, "totals": {"C2": 44, "High flow": 19, "Bird": 2, "total": 65}}, "2026-01-19": {"wards": {"Med ชาย": {"C2": 2, "High flow": 5, "Bird": 1, "total": 8}, "Med ญ": {"C2": 5, "High flow": 1, "Bird": 1, "total": 7}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 9, "High flow": 4, "Bird": 2, "total": 15}, "กจ3": {"C2": 8, "High flow": 2, "Bird": 0, "total": 10}}, "totals": {"C2": 30, "High flow": 12, "Bird": 4, "total": 46}}, "2026-01-21": {"wards": {"Med ชาย": {"C2": 8, "High flow": 5, "Bird": 1, "total": 14}, "Med ญ": {"C2": 10, "High flow": 3, "Bird": 1, "total": 14}, "TM": {"C2": 4, "High flow": 1, "Bird": 2, "total": 7}, "กจ2": {"C2": 8, "High flow": 3, "Bird": 0, "total": 11}, "กจ3": {"C2": 11, "High flow": 3, "Bird": 0, "total": 14}, "ศัลยกรรมกระดูก": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}}, "totals": {"C2": 48, "High flow": 15, "Bird": 4, "total": 67}}, "2026-01-26": {"wards": {"Med ชาย": {"C2": 7, "High flow": 8, "Bird": 0, "total": 15}, "Med ญ": {"C2": 3, "High flow": 2, "Bird": 1, "total": 6}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "กจ3": {"C2": 7, "High flow": 4, "Bird": 0, "total": 11}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}}, "totals": {"C2": 31, "High flow": 15, "Bird": 1, "total": 47}}, "2026-01-28": {"wards": {"Med ชาย": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "Med ญ": {"C2": 8, "High flow": 0, "Bird": 1, "total": 9}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "กจ3": {"C2": 6, "High flow": 1, "Bird": 1, "total": 8}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}}, "totals": {"C2": 37, "High flow": 7, "Bird": 2, "total": 46}}, "2026-02-02": {"wards": {"Med ชาย": {"C2": 11, "High flow": 4, "Bird": 0, "total": 15}, "Med ญ": {"C2": 8, "High flow": 4, "Bird": 1, "total": 13}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 5, "High flow": 3, "Bird": 0, "total": 8}, "กจ3": {"C2": 10, "High flow": 4, "Bird": 1, "total": 15}, "ศัลย์ ชาย": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}}, "totals": {"C2": 43, "High flow": 17, "Bird": 2, "total": 62}}, "2026-02-04": {"wards": {"Med ชาย": {"C2": 13, "High flow": 4, "Bird": 0, "total": 17}, "Med ญ": {"C2": 8, "High flow": 6, "Bird": 1, "total": 15}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 5, "High flow": 9, "Bird": 0, "total": 14}, "กจ3": {"C2": 8, "High flow": 3, "Bird": 1, "total": 12}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 44, "High flow": 22, "Bird": 2, "total": 68}}, "2026-02-09": {"wards": {"Med ชาย": {"C2": 11, "High flow": 4, "Bird": 0, "total": 15}, "Med ญ": {"C2": 6, "High flow": 5, "Bird": 1, "total": 12}, "TM": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "กจ2": {"C2": 8, "High flow": 4, "Bird": 0, "total": 12}, "กจ3": {"C2": 2, "High flow": 1, "Bird": 1, "total": 4}, "ศัลย์ หญิง": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}}, "totals": {"C2": 32, "High flow": 15, "Bird": 2, "total": 49}}, "2026-02-16": {"wards": {"Med ชาย": {"C2": 9, "High flow": 3, "Bird": 0, "total": 12}, "Med ญ": {"C2": 9, "High flow": 3, "Bird": 1, "total": 13}, "TM": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "กจ2": {"C2": 4, "High flow": 3, "Bird": 0, "total": 7}, "กจ3": {"C2": 5, "High flow": 1, "Bird": 1, "total": 7}, "ศัลย์ ชาย": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}}, "totals": {"C2": 37, "High flow": 12, "Bird": 2, "total": 51}}, "2026-02-18": {"wards": {"Med ชาย": {"C2": 7, "High flow": 4, "Bird": 0, "total": 11}, "Med ญ": {"C2": 9, "High flow": 3, "Bird": 1, "total": 13}, "TM": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ2": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}, "กจ3": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "ศัลย์ ชาย": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}}, "totals": {"C2": 31, "High flow": 13, "Bird": 1, "total": 45}}, "2026-02-23": {"wards": {"Med ชาย": {"C2": 8, "High flow": 10, "Bird": 0, "total": 18}, "Med ญ": {"C2": 11, "High flow": 2, "Bird": 2, "total": 15}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 6, "High flow": 3, "Bird": 0, "total": 9}, "กจ3": {"C2": 6, "High flow": 2, "Bird": 1, "total": 9}, "ศัลย์ ชาย": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}}, "totals": {"C2": 39, "High flow": 19, "Bird": 3, "total": 61}}, "2026-02-25": {"wards": {"Med ชาย": {"C2": 9, "High flow": 4, "Bird": 0, "total": 13}, "Med ญ": {"C2": 10, "High flow": 1, "Bird": 1, "total": 12}, "TM": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "กจ2": {"C2": 5, "High flow": 4, "Bird": 1, "total": 10}, "กจ3": {"C2": 5, "High flow": 4, "Bird": 1, "total": 10}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 38, "High flow": 13, "Bird": 3, "total": 54}}, "2026-03-02": {"wards": {"Med ชาย": {"C2": 6, "High flow": 6, "Bird": 0, "total": 12}, "Med ญ": {"C2": 6, "High flow": 3, "Bird": 1, "total": 10}, "TM": {"C2": 7, "High flow": 1, "Bird": 0, "total": 8}, "กจ2": {"C2": 5, "High flow": 3, "Bird": 0, "total": 8}, "กจ3": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 2, "High flow": 2, "Bird": 0, "total": 4}}, "totals": {"C2": 31, "High flow": 18, "Bird": 1, "total": 50}}, "2026-03-04": {"wards": {"Med ชาย": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "Med ญ": {"C2": 4, "High flow": 3, "Bird": 2, "total": 9}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "กจ3": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ ชาย": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 25, "High flow": 9, "Bird": 2, "total": 36}}, "2026-03-09": {"wards": {"Med ชาย": {"C2": 2, "High flow": 7, "Bird": 0, "total": 9}, "Med ญ": {"C2": 3, "High flow": 6, "Bird": 1, "total": 10}, "TM": {"C2": 8, "High flow": 0, "Bird": 0, "total": 8}, "กจ2": {"C2": 3, "High flow": 4, "Bird": 0, "total": 7}, "กจ3": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}}, "totals": {"C2": 24, "High flow": 23, "Bird": 1, "total": 48}}, "2026-03-11": {"wards": {"Med ชาย": {"C2": 3, "High flow": 8, "Bird": 0, "total": 11}, "Med ญ": {"C2": 3, "High flow": 3, "Bird": 1, "total": 7}, "TM": {"C2": 7, "High flow": 2, "Bird": 0, "total": 9}, "กจ2": {"C2": 2, "High flow": 5, "Bird": 0, "total": 7}, "กจ3": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}}, "totals": {"C2": 22, "High flow": 20, "Bird": 1, "total": 43}}, "2026-03-16": {"wards": {"Med ชาย": {"C2": 7, "High flow": 4, "Bird": 0, "total": 11}, "Med ญ": {"C2": 6, "High flow": 3, "Bird": 1, "total": 10}, "TM": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "กจ2": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "กจ3": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}}, "totals": {"C2": 30, "High flow": 12, "Bird": 1, "total": 43}}, "2026-03-18": {"wards": {"Med ชาย": {"C2": 5, "High flow": 5, "Bird": 0, "total": 10}, "Med ญ": {"C2": 6, "High flow": 2, "Bird": 1, "total": 9}, "TM": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}, "กจ2": {"C2": 5, "High flow": 3, "Bird": 0, "total": 8}, "กจ3": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}}, "totals": {"C2": 28, "High flow": 15, "Bird": 1, "total": 44}}, "2026-03-23": {"wards": {"Med ชาย": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "Med ญ": {"C2": 4, "High flow": 2, "Bird": 1, "total": 7}, "TM": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "กจ2": {"C2": 2, "High flow": 3, "Bird": 1, "total": 6}, "กจ3": {"C2": 0, "High flow": 4, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}}, "totals": {"C2": 18, "High flow": 14, "Bird": 2, "total": 34}}, "2026-03-25": {"wards": {"Med ชาย": {"C2": 5, "High flow": 6, "Bird": 0, "total": 11}, "Med ญ": {"C2": 5, "High flow": 2, "Bird": 1, "total": 8}, "กจ2": {"C2": 3, "High flow": 2, "Bird": 1, "total": 6}, "กจ3": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}}, "totals": {"C2": 21, "High flow": 13, "Bird": 2, "total": 36}}, "2026-03-30": {"wards": {"Med ชาย": {"C2": 3, "High flow": 5, "Bird": 0, "total": 8}, "Med ญ": {"C2": 8, "High flow": 1, "Bird": 1, "total": 10}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "กจ3": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 23, "High flow": 13, "Bird": 1, "total": 37}}, "2026-04-01": {"wards": {"Med ชาย": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}, "Med ญ": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "กจ3": {"C2": 2, "High flow": 5, "Bird": 1, "total": 8}, "ศัลย์ ชาย": {"C2": 6, "High flow": 1, "Bird": 0, "total": 7}, "ศัลย์ หญิง": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}}, "totals": {"C2": 25, "High flow": 15, "Bird": 1, "total": 41}}, "2026-04-08": {"wards": {"Med ชาย": {"C2": 3, "High flow": 4, "Bird": 0, "total": 7}, "Med ญ": {"C2": 9, "High flow": 4, "Bird": 0, "total": 13}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "กจ3": {"C2": 4, "High flow": 3, "Bird": 0, "total": 7}, "ศัลย์ ชาย": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}}, "totals": {"C2": 26, "High flow": 13, "Bird": 0, "total": 39}}, "2026-04-20": {"wards": {"Med ชาย": {"C2": 2, "High flow": 5, "Bird": 0, "total": 7}, "Med ญ": {"C2": 9, "High flow": 2, "Bird": 0, "total": 11}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "กจ3": {"C2": 4, "High flow": 2, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 27, "High flow": 10, "Bird": 0, "total": 37}}, "2026-04-22": {"wards": {"Med ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "2026-04-23": {"wards": {"Med ชาย": {"C2": 6, "High flow": 4, "Bird": 0, "total": 10}, "Med ญ": {"C2": 5, "High flow": 5, "Bird": 3, "total": 13}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 1, "High flow": 5, "Bird": 0, "total": 6}, "กจ3": {"C2": 1, "High flow": 5, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}}, "totals": {"C2": 21, "High flow": 20, "Bird": 3, "total": 44}}, "2026-04-27": {"wards": {"Med ชาย": {"C2": 5, "High flow": 4, "Bird": 0, "total": 9}, "Med ญ": {"C2": 6, "High flow": 1, "Bird": 3, "total": 10}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}, "กจ3": {"C2": 0, "High flow": 2, "Bird": 0, "total": 2}, "ศัลย์ ชาย": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 22, "High flow": 12, "Bird": 3, "total": 37}}, "2026-04-29": {"wards": {"Med ชาย": {"C2": 2, "High flow": 2, "Bird": 0, "total": 4}, "Med ญ": {"C2": 7, "High flow": 2, "Bird": 3, "total": 12}, "TM": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "กจ2": {"C2": 1, "High flow": 1, "Bird": 0, "total": 2}, "กจ3": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}, "ศัลย์ ชาย": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 20, "High flow": 9, "Bird": 3, "total": 32}}, "2026-05-06": {"wards": {"Med ชาย": {"C2": 1, "High flow": 5, "Bird": 2, "total": 8}, "Med ญ": {"C2": 4, "High flow": 0, "Bird": 1, "total": 5}, "TM": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "กจ2": {"C2": 4, "High flow": 4, "Bird": 0, "total": 8}, "กจ3": {"C2": 0, "High flow": 3, "Bird": 0, "total": 3}, "ศัลย์ ชาย": {"C2": 1, "High flow": 2, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 17, "High flow": 15, "Bird": 3, "total": 35}}, "2026-05-11": {"wards": {"Med ชาย": {"C2": 2, "High flow": 6, "Bird": 1, "total": 9}, "Med ญ": {"C2": 6, "High flow": 2, "Bird": 0, "total": 8}, "TM": {"C2": 3, "High flow": 3, "Bird": 0, "total": 6}, "กจ2": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 19, "High flow": 13, "Bird": 1, "total": 33}}, "2026-05-18": {"wards": {"Med ชาย": {"C2": 3, "High flow": 3, "Bird": 1, "total": 7}, "Med ญ": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 3, "High flow": 3, "Bird": 1, "total": 7}, "กจ3": {"C2": 1, "High flow": 5, "Bird": 0, "total": 6}, "ศัลย์ ชาย": {"C2": 5, "High flow": 1, "Bird": 0, "total": 6}, "ศัลย์ หญิง": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}}, "totals": {"C2": 20, "High flow": 13, "Bird": 2, "total": 35}}, "2026-05-20": {"wards": {"Med ชาย": {"C2": 3, "High flow": 5, "Bird": 1, "total": 9}, "Med ญ": {"C2": 7, "High flow": 4, "Bird": 0, "total": 11}, "TM": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "กจ2": {"C2": 1, "High flow": 4, "Bird": 1, "total": 6}, "กจ3": {"C2": 2, "High flow": 2, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 20, "High flow": 16, "Bird": 2, "total": 38}}, "2026-05-25": {"wards": {"Med ชาย": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "Med ญ": {"C2": 4, "High flow": 4, "Bird": 0, "total": 8}, "Picu": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "TM": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "กจ2": {"C2": 6, "High flow": 4, "Bird": 0, "total": 10}, "กจ3": {"C2": 1, "High flow": 4, "Bird": 0, "total": 5}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}}, "totals": {"C2": 27, "High flow": 14, "Bird": 0, "total": 41}}, "2026-05-27": {"wards": {"EENT": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "Med ชาย": {"C2": 7, "High flow": 2, "Bird": 0, "total": 9}, "Med ญ": {"C2": 8, "High flow": 3, "Bird": 0, "total": 11}, "TM": {"C2": 6, "High flow": 0, "Bird": 0, "total": 6}, "กจ2": {"C2": 7, "High flow": 5, "Bird": 0, "total": 12}, "กจ3": {"C2": 2, "High flow": 6, "Bird": 0, "total": 8}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 2, "High flow": 3, "Bird": 0, "total": 5}}, "totals": {"C2": 35, "High flow": 19, "Bird": 0, "total": 54}}, "2026-06-08": {"wards": {"Med ชาย": {"C2": 4, "High flow": 5, "Bird": 0, "total": 9}, "Med ญ": {"C2": 11, "High flow": 6, "Bird": 0, "total": 17}, "TM": {"C2": 7, "High flow": 1, "Bird": 0, "total": 8}, "กจ2": {"C2": 4, "High flow": 4, "Bird": 0, "total": 8}, "กจ3": {"C2": 5, "High flow": 0, "Bird": 0, "total": 5}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 35, "High flow": 17, "Bird": 0, "total": 52}}, "2026-06-10": {"wards": {"Med ชาย": {"C2": 5, "High flow": 3, "Bird": 0, "total": 8}, "Med ญ": {"C2": 11, "High flow": 4, "Bird": 0, "total": 15}, "TM": {"C2": 9, "High flow": 0, "Bird": 0, "total": 9}, "กจ2": {"C2": 6, "High flow": 5, "Bird": 0, "total": 11}, "กจ3": {"C2": 7, "High flow": 1, "Bird": 0, "total": 8}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 41, "High flow": 13, "Bird": 0, "total": 54}}, "2026-06-17": {"wards": {"Med ชาย": {"C2": 8, "High flow": 5, "Bird": 2, "total": 15}, "Med ญ": {"C2": 9, "High flow": 4, "Bird": 0, "total": 13}, "TM": {"C2": 8, "High flow": 0, "Bird": 0, "total": 8}, "กจ2": {"C2": 6, "High flow": 6, "Bird": 0, "total": 12}, "กจ3": {"C2": 3, "High flow": 1, "Bird": 0, "total": 4}, "ดล": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 36, "High flow": 17, "Bird": 2, "total": 55}}, "2026-06-22": {"wards": {"Med ชาย": {"C2": 5, "High flow": 2, "Bird": 1, "total": 8}, "Med ญ": {"C2": 9, "High flow": 5, "Bird": 0, "total": 14}, "TM": {"C2": 10, "High flow": 1, "Bird": 0, "total": 11}, "กจ2": {"C2": 4, "High flow": 5, "Bird": 0, "total": 9}, "กจ3": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "ศัลย์ ชาย": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 36, "High flow": 14, "Bird": 1, "total": 51}}, "2026-06-24": {"wards": {"Med ชาย": {"C2": 5, "High flow": 7, "Bird": 1, "total": 13}, "Med ญ": {"C2": 9, "High flow": 4, "Bird": 0, "total": 13}, "TM": {"C2": 9, "High flow": 1, "Bird": 0, "total": 10}, "กจ2": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "กจ3": {"C2": 2, "High flow": 2, "Bird": 0, "total": 4}, "ศัลย์ ชาย": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}}, "totals": {"C2": 37, "High flow": 17, "Bird": 1, "total": 55}}, "2026-07-20": {"wards": {"Med ชาย": {"C2": 8, "High flow": 2, "Bird": 0, "total": 10}, "Med ญ": {"C2": 8, "High flow": 6, "Bird": 1, "total": 15}, "TM": {"C2": 2, "High flow": 0, "Bird": 0, "total": 2}, "กจ2": {"C2": 5, "High flow": 3, "Bird": 0, "total": 8}, "กจ3": {"C2": 5, "High flow": 2, "Bird": 0, "total": 7}, "ศัลย์ ชาย": {"C2": 2, "High flow": 1, "Bird": 0, "total": 3}, "ศัลย์ หญิง": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}}, "totals": {"C2": 30, "High flow": 15, "Bird": 1, "total": 46}}, "2026-07-27": {"wards": {"Med ชาย": {"C2": 5, "High flow": 4, "Bird": 0, "total": 9}, "Med ญ": {"C2": 4, "High flow": 3, "Bird": 3, "total": 10}, "TM": {"C2": 4, "High flow": 1, "Bird": 0, "total": 5}, "กจ2": {"C2": 7, "High flow": 3, "Bird": 0, "total": 10}, "กจ3": {"C2": 5, "High flow": 4, "Bird": 0, "total": 9}, "ศัลย์ ชาย": {"C2": 3, "High flow": 2, "Bird": 0, "total": 5}, "ศัลย์ หญิง": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}}, "totals": {"C2": 29, "High flow": 17, "Bird": 3, "total": 49}}}, "overall": {"EENT": {"C2": 4, "High flow": 0, "Bird": 0, "total": 4}, "ICU 100": {"C2": 0, "High flow": 43, "Bird": 0, "total": 43}, "Med ชาย": {"C2": 897, "High flow": 500, "Bird": 57, "total": 1454}, "Med ญ": {"C2": 1047, "High flow": 478, "Bird": 82, "total": 1607}, "Picu": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "Semi": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "TM": {"C2": 565, "High flow": 64, "Bird": 16, "total": 645}, "กจ2": {"C2": 755, "High flow": 394, "Bird": 45, "total": 1194}, "กจ3": {"C2": 620, "High flow": 355, "Bird": 40, "total": 1015}, "กจ4": {"C2": 3, "High flow": 0, "Bird": 0, "total": 3}, "ญ8": {"C2": 0, "High flow": 1, "Bird": 0, "total": 1}, "ดบ": {"C2": 2, "High flow": 5, "Bird": 0, "total": 7}, "ดล": {"C2": 0, "High flow": 22, "Bird": 0, "total": 22}, "ศัลยกรรมกระดูก": {"C2": 1, "High flow": 0, "Bird": 0, "total": 1}, "ศัลย์ ชาย": {"C2": 297, "High flow": 97, "Bird": 23, "total": 417}, "ศัลย์ หญิง": {"C2": 346, "High flow": 44, "Bird": 20, "total": 410}}, "overallTotals": {"C2": 4540, "High flow": 2004, "Bird": 283, "total": 6827}, "trend": [{"date": "2025-01-06", "C2": 34, "High flow": 10, "Bird": 10, "total": 54}, {"date": "2025-01-07", "C2": 1, "High flow": 0, "Bird": 0, "total": 1}, {"date": "2025-01-08", "C2": 42, "High flow": 14, "Bird": 6, "total": 62}, {"date": "2025-01-09", "C2": 0, "High flow": 0, "Bird": 1, "total": 1}, {"date": "2025-01-10", "C2": 38, "High flow": 15, "Bird": 4, "total": 57}, {"date": "2025-01-11", "C2": 1, "High flow": 0, "Bird": 0, "total": 1}, {"date": "2025-01-12", "C2": 0, "High flow": 1, "Bird": 0, "total": 1}, {"date": "2025-01-13", "C2": 46, "High flow": 15, "Bird": 15, "total": 76}, {"date": "2025-01-14", "C2": 1, "High flow": 0, "Bird": 0, "total": 1}, {"date": "2025-01-15", "C2": 1, "High flow": 0, "Bird": 0, "total": 1}, {"date": "2025-01-16", "C2": 1, "High flow": 0, "Bird": 0, "total": 1}, {"date": "2025-01-17", "C2": 41, "High flow": 15, "Bird": 9, "total": 65}, {"date": "2025-01-18", "C2": 1, "High flow": 0, "Bird": 0, "total": 1}, {"date": "2025-01-19", "C2": 0, "High flow": 1, "Bird": 0, "total": 1}, {"date": "2025-01-20", "C2": 45, "High flow": 20, "Bird": 14, "total": 79}, {"date": "2025-01-22", "C2": 46, "High flow": 18, "Bird": 12, "total": 76}, {"date": "2025-01-24", "C2": 46, "High flow": 16, "Bird": 16, "total": 78}, {"date": "2025-01-27", "C2": 45, "High flow": 16, "Bird": 9, "total": 70}, {"date": "2025-01-29", "C2": 46, "High flow": 13, "Bird": 6, "total": 65}, {"date": "2025-01-31", "C2": 43, "High flow": 20, "Bird": 6, "total": 69}, {"date": "2025-02-03", "C2": 40, "High flow": 20, "Bird": 4, "total": 64}, {"date": "2025-02-05", "C2": 32, "High flow": 21, "Bird": 2, "total": 55}, {"date": "2025-02-07", "C2": 27, "High flow": 20, "Bird": 1, "total": 48}, {"date": "2025-02-10", "C2": 40, "High flow": 17, "Bird": 1, "total": 58}, {"date": "2025-02-17", "C2": 40, "High flow": 13, "Bird": 2, "total": 55}, {"date": "2025-02-19", "C2": 40, "High flow": 17, "Bird": 0, "total": 57}, {"date": "2025-02-21", "C2": 32, "High flow": 15, "Bird": 0, "total": 47}, {"date": "2025-02-24", "C2": 35, "High flow": 15, "Bird": 0, "total": 50}, {"date": "2025-02-26", "C2": 33, "High flow": 17, "Bird": 2, "total": 52}, {"date": "2025-02-28", "C2": 41, "High flow": 14, "Bird": 0, "total": 55}, {"date": "2025-03-03", "C2": 37, "High flow": 18, "Bird": 0, "total": 55}, {"date": "2025-03-05", "C2": 39, "High flow": 14, "Bird": 0, "total": 53}, {"date": "2025-03-07", "C2": 30, "High flow": 15, "Bird": 1, "total": 46}, {"date": "2025-03-10", "C2": 41, "High flow": 14, "Bird": 1, "total": 56}, {"date": "2025-03-12", "C2": 0, "High flow": 6, "Bird": 0, "total": 6}, {"date": "2025-03-14", "C2": 39, "High flow": 17, "Bird": 1, "total": 57}, {"date": "2025-03-17", "C2": 39, "High flow": 16, "Bird": 2, "total": 57}, {"date": "2025-03-19", "C2": 37, "High flow": 18, "Bird": 2, "total": 57}, {"date": "2025-03-21", "C2": 19, "High flow": 11, "Bird": 1, "total": 31}, {"date": "2025-03-24", "C2": 42, "High flow": 26, "Bird": 5, "total": 73}, {"date": "2025-03-26", "C2": 43, "High flow": 15, "Bird": 4, "total": 62}, {"date": "2025-03-31", "C2": 45, "High flow": 25, "Bird": 2, "total": 72}, {"date": "2025-04-02", "C2": 42, "High flow": 17, "Bird": 8, "total": 67}, {"date": "2025-04-09", "C2": 41, "High flow": 11, "Bird": 2, "total": 54}, {"date": "2025-04-11", "C2": 42, "High flow": 13, "Bird": 2, "total": 57}, {"date": "2025-04-18", "C2": 43, "High flow": 18, "Bird": 3, "total": 64}, {"date": "2025-04-21", "C2": 33, "High flow": 11, "Bird": 0, "total": 44}, {"date": "2025-04-23", "C2": 31, "High flow": 15, "Bird": 3, "total": 49}, {"date": "2025-04-25", "C2": 29, "High flow": 11, "Bird": 2, "total": 42}, {"date": "2025-04-28", "C2": 28, "High flow": 19, "Bird": 4, "total": 51}, {"date": "2025-05-02", "C2": 35, "High flow": 6, "Bird": 0, "total": 41}, {"date": "2025-05-07", "C2": 33, "High flow": 18, "Bird": 1, "total": 52}, {"date": "2025-05-14", "C2": 32, "High flow": 16, "Bird": 1, "total": 49}, {"date": "2025-05-19", "C2": 34, "High flow": 15, "Bird": 2, "total": 51}, {"date": "2025-05-21", "C2": 37, "High flow": 10, "Bird": 2, "total": 49}, {"date": "2025-05-23", "C2": 27, "High flow": 13, "Bird": 3, "total": 43}, {"date": "2025-05-26", "C2": 30, "High flow": 9, "Bird": 0, "total": 39}, {"date": "2025-05-28", "C2": 21, "High flow": 15, "Bird": 1, "total": 37}, {"date": "2025-06-04", "C2": 24, "High flow": 13, "Bird": 0, "total": 37}, {"date": "2025-06-06", "C2": 26, "High flow": 15, "Bird": 0, "total": 41}, {"date": "2025-06-09", "C2": 23, "High flow": 13, "Bird": 0, "total": 36}, {"date": "2025-06-11", "C2": 27, "High flow": 22, "Bird": 0, "total": 49}, {"date": "2025-06-13", "C2": 25, "High flow": 9, "Bird": 1, "total": 35}, {"date": "2025-06-16", "C2": 32, "High flow": 21, "Bird": 0, "total": 53}, {"date": "2025-06-18", "C2": 30, "High flow": 20, "Bird": 0, "total": 50}, {"date": "2025-06-20", "C2": 20, "High flow": 17, "Bird": 0, "total": 37}, {"date": "2025-06-23", "C2": 33, "High flow": 20, "Bird": 0, "total": 53}, {"date": "2025-06-25", "C2": 37, "High flow": 16, "Bird": 0, "total": 53}, {"date": "2025-06-30", "C2": 35, "High flow": 15, "Bird": 0, "total": 50}, {"date": "2025-07-02", "C2": 38, "High flow": 10, "Bird": 2, "total": 50}, {"date": "2025-07-07", "C2": 26, "High flow": 9, "Bird": 1, "total": 36}, {"date": "2025-07-21", "C2": 25, "High flow": 13, "Bird": 0, "total": 38}, {"date": "2025-07-23", "C2": 27, "High flow": 11, "Bird": 0, "total": 38}, {"date": "2025-09-01", "C2": 19, "High flow": 10, "Bird": 4, "total": 33}, {"date": "2025-09-03", "C2": 36, "High flow": 13, "Bird": 1, "total": 50}, {"date": "2025-09-08", "C2": 30, "High flow": 14, "Bird": 0, "total": 44}, {"date": "2025-09-10", "C2": 32, "High flow": 17, "Bird": 2, "total": 51}, {"date": "2025-09-17", "C2": 25, "High flow": 24, "Bird": 0, "total": 49}, {"date": "2025-09-22", "C2": 26, "High flow": 11, "Bird": 0, "total": 37}, {"date": "2025-09-24", "C2": 35, "High flow": 18, "Bird": 0, "total": 53}, {"date": "2025-09-29", "C2": 42, "High flow": 16, "Bird": 0, "total": 58}, {"date": "2025-10-01", "C2": 34, "High flow": 21, "Bird": 1, "total": 56}, {"date": "2025-10-06", "C2": 30, "High flow": 10, "Bird": 1, "total": 41}, {"date": "2025-10-08", "C2": 44, "High flow": 11, "Bird": 2, "total": 57}, {"date": "2025-10-20", "C2": 45, "High flow": 9, "Bird": 3, "total": 57}, {"date": "2025-10-22", "C2": 38, "High flow": 13, "Bird": 0, "total": 51}, {"date": "2025-10-27", "C2": 49, "High flow": 13, "Bird": 4, "total": 66}, {"date": "2025-10-29", "C2": 47, "High flow": 10, "Bird": 0, "total": 57}, {"date": "2025-11-03", "C2": 36, "High flow": 9, "Bird": 1, "total": 46}, {"date": "2025-11-05", "C2": 38, "High flow": 18, "Bird": 2, "total": 58}, {"date": "2025-11-10", "C2": 38, "High flow": 13, "Bird": 1, "total": 52}, {"date": "2025-11-12", "C2": 15, "High flow": 5, "Bird": 0, "total": 20}, {"date": "2025-11-17", "C2": 26, "High flow": 11, "Bird": 0, "total": 37}, {"date": "2025-11-19", "C2": 7, "High flow": 6, "Bird": 0, "total": 13}, {"date": "2025-11-24", "C2": 36, "High flow": 8, "Bird": 1, "total": 45}, {"date": "2025-11-26", "C2": 37, "High flow": 9, "Bird": 5, "total": 51}, {"date": "2025-12-08", "C2": 36, "High flow": 14, "Bird": 2, "total": 52}, {"date": "2025-12-15", "C2": 37, "High flow": 19, "Bird": 0, "total": 56}, {"date": "2025-12-17", "C2": 27, "High flow": 15, "Bird": 1, "total": 43}, {"date": "2025-12-22", "C2": 44, "High flow": 9, "Bird": 0, "total": 53}, {"date": "2025-12-24", "C2": 42, "High flow": 16, "Bird": 0, "total": 58}, {"date": "2025-12-29", "C2": 42, "High flow": 9, "Bird": 2, "total": 53}, {"date": "2026-01-05", "C2": 47, "High flow": 18, "Bird": 4, "total": 69}, {"date": "2026-01-07", "C2": 46, "High flow": 21, "Bird": 2, "total": 69}, {"date": "2026-01-12", "C2": 39, "High flow": 20, "Bird": 1, "total": 60}, {"date": "2026-01-14", "C2": 44, "High flow": 19, "Bird": 2, "total": 65}, {"date": "2026-01-19", "C2": 30, "High flow": 12, "Bird": 4, "total": 46}, {"date": "2026-01-21", "C2": 48, "High flow": 15, "Bird": 4, "total": 67}, {"date": "2026-01-26", "C2": 31, "High flow": 15, "Bird": 1, "total": 47}, {"date": "2026-01-28", "C2": 37, "High flow": 7, "Bird": 2, "total": 46}, {"date": "2026-02-02", "C2": 43, "High flow": 17, "Bird": 2, "total": 62}, {"date": "2026-02-04", "C2": 44, "High flow": 22, "Bird": 2, "total": 68}, {"date": "2026-02-09", "C2": 32, "High flow": 15, "Bird": 2, "total": 49}, {"date": "2026-02-16", "C2": 37, "High flow": 12, "Bird": 2, "total": 51}, {"date": "2026-02-18", "C2": 31, "High flow": 13, "Bird": 1, "total": 45}, {"date": "2026-02-23", "C2": 39, "High flow": 19, "Bird": 3, "total": 61}, {"date": "2026-02-25", "C2": 38, "High flow": 13, "Bird": 3, "total": 54}, {"date": "2026-03-02", "C2": 31, "High flow": 18, "Bird": 1, "total": 50}, {"date": "2026-03-04", "C2": 25, "High flow": 9, "Bird": 2, "total": 36}, {"date": "2026-03-09", "C2": 24, "High flow": 23, "Bird": 1, "total": 48}, {"date": "2026-03-11", "C2": 22, "High flow": 20, "Bird": 1, "total": 43}, {"date": "2026-03-16", "C2": 30, "High flow": 12, "Bird": 1, "total": 43}, {"date": "2026-03-18", "C2": 28, "High flow": 15, "Bird": 1, "total": 44}, {"date": "2026-03-23", "C2": 18, "High flow": 14, "Bird": 2, "total": 34}, {"date": "2026-03-25", "C2": 21, "High flow": 13, "Bird": 2, "total": 36}, {"date": "2026-03-30", "C2": 23, "High flow": 13, "Bird": 1, "total": 37}, {"date": "2026-04-01", "C2": 25, "High flow": 15, "Bird": 1, "total": 41}, {"date": "2026-04-08", "C2": 26, "High flow": 13, "Bird": 0, "total": 39}, {"date": "2026-04-20", "C2": 27, "High flow": 10, "Bird": 0, "total": 37}, {"date": "2026-04-22", "C2": 1, "High flow": 0, "Bird": 0, "total": 1}, {"date": "2026-04-23", "C2": 21, "High flow": 20, "Bird": 3, "total": 44}, {"date": "2026-04-27", "C2": 22, "High flow": 12, "Bird": 3, "total": 37}, {"date": "2026-04-29", "C2": 20, "High flow": 9, "Bird": 3, "total": 32}, {"date": "2026-05-06", "C2": 17, "High flow": 15, "Bird": 3, "total": 35}, {"date": "2026-05-11", "C2": 19, "High flow": 13, "Bird": 1, "total": 33}, {"date": "2026-05-18", "C2": 20, "High flow": 13, "Bird": 2, "total": 35}, {"date": "2026-05-20", "C2": 20, "High flow": 16, "Bird": 2, "total": 38}, {"date": "2026-05-25", "C2": 27, "High flow": 14, "Bird": 0, "total": 41}, {"date": "2026-05-27", "C2": 35, "High flow": 19, "Bird": 0, "total": 54}, {"date": "2026-06-08", "C2": 35, "High flow": 17, "Bird": 0, "total": 52}, {"date": "2026-06-10", "C2": 41, "High flow": 13, "Bird": 0, "total": 54}, {"date": "2026-06-17", "C2": 36, "High flow": 17, "Bird": 2, "total": 55}, {"date": "2026-06-22", "C2": 36, "High flow": 14, "Bird": 1, "total": 51}, {"date": "2026-06-24", "C2": 37, "High flow": 17, "Bird": 1, "total": 55}, {"date": "2026-07-20", "C2": 30, "High flow": 15, "Bird": 1, "total": 46}, {"date": "2026-07-27", "C2": 29, "High flow": 17, "Bird": 3, "total": 49}]}</script>
+<script>
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRvgVSsHMw8KEKmJtI9Qn5p5pe1cfEZfR-F2ABeur2m_MfwJXevSW9so247MQfl9vBfZnpqp74zxeI5/pub?output=csv";
+const FALLBACK = JSON.parse(document.getElementById('__fallback__').textContent);
+
+const BASE_TYPE_COLORS = {'C2':'#0F7C8C','High flow':'#1B4F72','Bird':'#D96C4B'};
+const EXTRA_PALETTE = ['#7C6FC4','#E2A73E','#4C8C4A','#B14C7C'];
+
+let trendChartInstance = null;
+let CURRENT = null;
+
+function fmt(n){ return (n||0).toLocaleString('en-US'); }
+
+function thaiDate(iso){
+  const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const d = new Date(iso+'T00:00:00');
+  const buddhistYear = d.getFullYear()+543;
+  return `${d.getDate()} ${months[d.getMonth()]} ${buddhistYear}`;
+}
+function thaiMonthLabel(iso){
+  const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  const d = new Date(iso+'T00:00:00');
+  return `${months[d.getMonth()]} ${d.getFullYear()+543}`;
+}
+function monthKey(iso){ return iso.slice(0,7); }
+
+function typeColor(t, idx){ return BASE_TYPE_COLORS[t] || EXTRA_PALETTE[idx % EXTRA_PALETTE.length]; }
+
+// ---------- normalization (mirrors the cleaning rules used for the original dataset) ----------
+function normWard(raw){
+  if(raw===null||raw===undefined) return null;
+  let w = String(raw).trim().replace(/\s+/g,' ');
+  if(w==='') return null;
+  let key = w.toLowerCase().replace(/\./g,'').trim();
+  let keyNoSpace = key.replace(/\s+/g,'');
+  const mapping = {
+    'icu100':'ICU 100', 'icu':'ICU 100', 'icu100ปี':'ICU 100', 'i100':'ICU 100'
+  };
+  if(mapping[keyNoSpace]) return mapping[keyNoSpace];
+  if(w==='ดล'||w==='ดล.') return 'ดล';
+  if(w==='ดบ'||w==='ดบ.') return 'ดบ';
+  if(w==='ศัลย์ หญิง'||w==='ศัลย์ ญ') return 'ศัลย์ หญิง';
+  return w;
+}
+function normType(raw){
+  if(raw===null||raw===undefined) return null;
+  let t = String(raw).trim().replace(/,+$/,'').trim();
+  if(t==='') return null;
+  if(t.toLowerCase()==='high flow') return 'High flow';
+  if(t.toLowerCase()==='bird') return 'Bird';
+  if(t.toLowerCase().startsWith('c2')) return 'C2';
+  return t;
+}
+function toISODate(raw){
+  if(raw===null||raw===undefined) return null;
+  let s = String(raw).trim();
+  if(s==='') return null;
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m){
+    let a = parseInt(m[1],10), b = parseInt(m[2],10), y = m[3];
+    let mm, dd;
+    if(a>12){ dd=a; mm=b; } else if(b>12){ mm=a; dd=b; } else { mm=a; dd=b; } // default M/D/Y
+    return `${y}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+  }
+  const d = new Date(s);
+  if(!isNaN(d)) return d.toISOString().slice(0,10);
+  return null;
+}
+
+// ---------- build aggregated structure from raw rows ----------
+function buildDataFromRows(rows){
+  const typesSet = new Set();
+  const wardsSet = new Set();
+  const perDate = {};
+  const overall = {};
+  const overallTotals = {total:0};
+  let anyValid = false;
+
+  rows.forEach(r=>{
+    const ward = normWard(r['หน่วยงาน']);
+    const type = normType(r['เครื่องช่วยหายใจ']);
+    const date = toISODate(r['ประทับเวลา']);
+    if(!ward || !type || !date) return;
+    anyValid = true;
+    wardsSet.add(ward); typesSet.add(type);
+
+    if(!perDate[date]) perDate[date] = {wards:{}, totals:{total:0}};
+    if(!perDate[date].wards[ward]) perDate[date].wards[ward] = {total:0};
+    perDate[date].wards[ward][type] = (perDate[date].wards[ward][type]||0)+1;
+    perDate[date].wards[ward].total += 1;
+    perDate[date].totals[type] = (perDate[date].totals[type]||0)+1;
+    perDate[date].totals.total += 1;
+
+    if(!overall[ward]) overall[ward] = {total:0};
+    overall[ward][type] = (overall[ward][type]||0)+1;
+    overall[ward].total += 1;
+    overallTotals[type] = (overallTotals[type]||0)+1;
+    overallTotals.total += 1;
+  });
+
+  if(!anyValid) return null;
+
+  const preferredOrder = ['C2','High flow','Bird'];
+  const types = preferredOrder.filter(t=>typesSet.has(t)).concat([...typesSet].filter(t=>!preferredOrder.includes(t)).sort());
+  const wards = [...wardsSet].sort();
+  const dates = Object.keys(perDate).sort();
+
+  // zero-fill missing type keys so UI code doesn't need to guard
+  types.forEach(t=>{
+    if(!(t in overallTotals)) overallTotals[t]=0;
+    wards.forEach(w=>{ if(!(t in overall[w])) overall[w][t]=0; });
+    dates.forEach(d=>{
+      if(!(t in perDate[d].totals)) perDate[d].totals[t]=0;
+      Object.keys(perDate[d].wards).forEach(w=>{ if(!(t in perDate[d].wards[w])) perDate[d].wards[w][t]=0; });
+    });
+  });
+
+  const trend = dates.map(d=>({date:d, ...perDate[d].totals}));
+
+  return {wards, types, dates, perDate, overall, overallTotals, trend};
+}
+
+// ---------- rendering ----------
+function render(data, source){
+  CURRENT = data;
+
+  document.getElementById('hmDays').textContent = data.dates.length;
+  document.getElementById('hmWards').textContent = data.wards.length;
+  document.getElementById('hmTotal').textContent = fmt(data.overallTotals.total);
+  document.getElementById('dateRangeSub').textContent =
+    `ข้อมูล ${thaiDate(data.dates[0])} — ${thaiDate(data.dates[data.dates.length-1])} · แยกตามหน่วยงาน / ตึก`;
+
+  document.getElementById('kpiTotal').innerHTML = fmt(data.overallTotals.total) + ' <span class="unit">เครื่อง/รอบ</span>';
+  document.getElementById('kpiC2').textContent = fmt(data.overallTotals['C2']);
+  document.getElementById('kpiHF').textContent = fmt(data.overallTotals['High flow']);
+  document.getElementById('kpiBird').textContent = fmt(data.overallTotals['Bird']);
+
+  // ward grid
+  const wardGrid = document.getElementById('wardGrid');
+  wardGrid.innerHTML = '';
+  const wardEntries = Object.entries(data.overall).sort((a,b)=> b[1].total - a[1].total);
+  wardEntries.forEach(([ward, obj])=>{
+    const total = obj.total;
+    const segs = data.types.map((t,i)=>{
+      const pct = total ? (obj[t]/total*100) : 0;
+      return `<span class="stack-seg" style="width:${pct}%; background:${typeColor(t,i)}"></span>`;
+    }).join('');
+    const typeChips = data.types.map((t,i)=>`<span class="wtype"><span class="dot" style="background:${typeColor(t,i)}"></span>${t} <b>${fmt(obj[t])}</b></span>`).join('');
+    const card = document.createElement('div');
+    card.className='ward-card';
+    card.innerHTML = `
+      <div class="wname">${ward}</div>
+      <div class="wtotal">รวมทั้งหมด <b>${fmt(total)}</b> ครั้ง</div>
+      <div class="stack-bar">${segs}</div>
+      <div class="wtypes">${typeChips}</div>
+    `;
+    wardGrid.appendChild(card);
+  });
+
+  // trend legend
+  const legend = document.getElementById('trendLegend');
+  legend.innerHTML = data.types.map((t,i)=>`<div class="legend-item"><span class="dot" style="background:${typeColor(t,i)}"></span>${t}</div>`).join('');
+
+  // trend chart
+  if(trendChartInstance) trendChartInstance.destroy();
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  trendChartInstance = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: data.trend.map(r=>thaiDate(r.date)),
+      datasets: data.types.map((t,i)=>({
+        label:t, data:data.trend.map(r=>r[t]||0),
+        borderColor:typeColor(t,i), backgroundColor:typeColor(t,i)+'22',
+        fill:true, tension:0.3, pointRadius:0, borderWidth:2
+      }))
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{ legend:{display:false},
+        tooltip:{ backgroundColor:'#0A2E4D', padding:10, titleFont:{family:'IBM Plex Mono'}, bodyFont:{family:'IBM Plex Mono'} } },
+      scales:{
+        x:{ ticks:{ maxTicksLimit:10, font:{size:10, family:'IBM Plex Mono'}, color:'#64748B' }, grid:{display:false} },
+        y:{ ticks:{font:{size:10,family:'IBM Plex Mono'}, color:'#64748B'}, grid:{color:'#EEF1F5'} }
+      }
+    }
+  });
+
+  // date accordion nav
+  const dateNav = document.getElementById('dateNav');
+  dateNav.innerHTML = '';
+  const byMonth = {};
+  data.dates.forEach(d=>{
+    const key = monthKey(d);
+    if(!byMonth[key]) byMonth[key]=[];
+    byMonth[key].push(d);
+  });
+  const monthKeys = Object.keys(byMonth).sort();
+  const latestMonthKey = monthKeys[monthKeys.length-1];
+
+  monthKeys.forEach(mk=>{
+    const dates = byMonth[mk];
+    const group = document.createElement('div');
+    group.className = 'accordion-month' + (mk===latestMonthKey ? ' open' : '');
+    const monthTotal = dates.reduce((s,d)=> s + data.perDate[d].totals.total, 0);
+
+    const head = document.createElement('button');
+    head.className = 'accordion-head';
+    head.innerHTML = `<span><span class="chev">&#9656;</span> ${thaiMonthLabel(dates[0])}</span><span class="mcount">${dates.length} วัน &middot; ${monthTotal} เครื่อง</span>`;
+    head.addEventListener('click', ()=> group.classList.toggle('open'));
+
+    const body = document.createElement('div');
+    body.className = 'accordion-body';
+    dates.forEach(d=>{
+      const btn = document.createElement('button');
+      btn.className='date-btn';
+      btn.dataset.date = d;
+      const cnt = data.perDate[d].totals.total;
+      btn.innerHTML = `<span>${thaiDate(d)}</span><span class="cnt">${cnt}</span>`;
+      btn.addEventListener('click', ()=> selectDate(d));
+      body.appendChild(btn);
+    });
+
+    group.appendChild(head);
+    group.appendChild(body);
+    dateNav.appendChild(group);
+  });
+
+  selectDate(data.dates[data.dates.length-1]);
+}
+
+function selectDate(d){
+  const data = CURRENT;
+  document.querySelectorAll('.date-btn').forEach(b=>b.classList.toggle('active', b.dataset.date===d));
+  const info = data.perDate[d];
+  const wardRows = Object.entries(info.wards).sort((a,b)=>b[1].total-a[1].total);
+  const detail = document.getElementById('dateDetail');
+
+  let rows = wardRows.map(([ward,obj])=>{
+    const cells = data.types.map(t=>`<td class="num">${obj[t]||0}</td>`).join('');
+    return `<tr><td>${ward}</td>${cells}<td class="num"><b>${obj.total}</b></td></tr>`;
+  }).join('');
+
+  const totalCells = data.types.map(t=>`<td class="num">${info.totals[t]||0}</td>`).join('');
+
+  detail.innerHTML = `
+    <div class="detail-head">
+      <h3>รอบวันที่ ${thaiDate(d)}</h3>
+      <span class="badge">${wardRows.length} หน่วยงาน &middot; ${info.totals.total} เครื่อง</span>
+    </div>
+    <table class="detail-table">
+      <thead><tr><th>หน่วยงาน / ตึก</th>${data.types.map(t=>`<th style="text-align:right">${t}</th>`).join('')}<th style="text-align:right">รวม</th></tr></thead>
+      <tbody>
+        ${rows}
+        <tr class="total-row"><td>รวมทั้งหมด</td>${totalCells}<td class="num">${info.totals.total}</td></tr>
+      </tbody>
+    </table>
+  `;
+}
+
+// ---------- sync (live fetch) ----------
+function setSync(state, text){
+  const dot = document.getElementById('syncDot');
+  dot.className = 'sync-dot ' + state;
+  document.getElementById('syncText').innerHTML = text;
+}
+
+function syncNow(){
+  const btn = document.getElementById('syncBtn');
+  btn.disabled = true;
+  setSync('loading', 'กำลังดึงข้อมูลล่าสุดจาก Google Sheet...');
+
+  fetch(CSV_URL, {cache:'no-store'})
+    .then(res=>{ if(!res.ok) throw new Error('HTTP '+res.status); return res.text(); })
+    .then(csvText=>{
+      const parsed = Papa.parse(csvText, {header:true, skipEmptyLines:true});
+      const data = buildDataFromRows(parsed.data);
+      if(!data) throw new Error('empty');
+      const now = new Date();
+      render(data, 'live');
+      setSync('live', `เชื่อมต่อสำเร็จ &middot; ข้อมูลสด <b>${data.dates.length}</b> วัน &middot; ซิงก์ล่าสุด ${now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}`);
+    })
+    .catch(err=>{
+      render(FALLBACK, 'fallback');
+      setSync('stale', `ดึงข้อมูลสดไม่ได้ (${err.message}) &middot; แสดง <b>snapshot</b> ล่าสุดที่ฝังในไฟล์แทน — กดปุ่มด้านขวาเพื่อลองใหม่`);
+    })
+    .finally(()=>{ btn.disabled = false; });
+}
+
+document.getElementById('syncBtn').addEventListener('click', syncNow);
+
+// initial: render fallback immediately so the UI isn't empty, then try live
+render(FALLBACK, 'fallback');
+setSync('loading', 'กำลังเชื่อมต่อกับ Google Sheet...');
+syncNow();
+</script>
+</body>
+</html>
