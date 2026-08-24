@@ -476,7 +476,7 @@ function toISODate(raw){
   if(m){
     let a = parseInt(m[1],10), b = parseInt(m[2],10), y = m[3];
     let mm, dd;
-    if(a>12){ dd=a; mm=b; } else if(b>12){ mm=a; dd=b; } else { mm=a; dd=b; } // default M/D/Y
+    if(a>12){ dd=a; mm=b; } else if(b>12){ mm=a; dd=b; } else { dd=a; mm=b; } // default D/M/Y (Thai-locale Google Forms timestamp)
     return `${y}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
   }
   const d = new Date(s);
