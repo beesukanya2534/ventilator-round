@@ -321,11 +321,34 @@ table.detail-table tr.total-row td{font-weight:700; background:var(--paper); bor
 .legend-row{display:flex; gap:18px; margin-top:14px; flex-wrap:wrap;}
 .legend-item{font-size:12px; color:var(--slate-600); display:flex; align-items:center; gap:6px;}
 
+.pdf-btn{
+  background:var(--white); color:var(--teal-600); border:1px solid var(--teal-600);
+  font-family:'Sarabun',sans-serif; font-weight:600; font-size:12px;
+  padding:6px 12px; border-radius:8px; cursor:pointer;
+}
+.pdf-btn:hover{background:var(--teal-100);}
+
 footer{
   text-align:center;
   color:var(--slate-500);
   font-size:12px;
   padding:24px 0 8px;
+}
+
+/* ===== Print (export รายวันเป็น PDF) ===== */
+@media print{
+  body.printing-day .header,
+  body.printing-day .sync-bar,
+  body.printing-day .kpi-row,
+  body.printing-day .chart-panel,
+  body.printing-day .ward-panel,
+  body.printing-day .explorer-panel .section-title,
+  body.printing-day .date-nav,
+  body.printing-day .pdf-btn,
+  body.printing-day footer{ display:none !important; }
+  body.printing-day .wrap{ padding:0; max-width:100%; margin:0; }
+  body.printing-day .explorer{ display:block; }
+  body.printing-day .explorer-panel{ box-shadow:none; border:none; padding:0; margin:0; }
 }
 </style>
 </head>
@@ -391,18 +414,18 @@ footer{
     </div>
   </div>
 
-  <div class="panel">
+  <div class="panel chart-panel">
     <div class="section-title">แนวโน้มจำนวนเครื่องต่อรอบ (ทุกวันที่บันทึก)</div>
     <div class="chart-box"><canvas id="trendChart"></canvas></div>
     <div class="legend-row" id="trendLegend"></div>
   </div>
 
-  <div class="panel">
+  <div class="panel ward-panel">
     <div class="section-title">สรุปรวมแยกตามหน่วยงาน / ตึก (ทุกช่วงเวลา)</div>
     <div class="ward-grid" id="wardGrid"></div>
   </div>
 
-  <div class="panel">
+  <div class="panel explorer-panel">
     <div class="section-title">ดูรายละเอียดแยกตามวัน — คลิกเดือนเพื่อกาง/ยุบ แล้วเลือกวันที่</div>
     <div class="explorer">
       <div class="date-nav" id="dateNav"></div>
@@ -664,6 +687,7 @@ function selectDate(d){
     <div class="detail-head">
       <h3>รอบวันที่ ${thaiDate(d)}</h3>
       <span class="badge">${wardRows.length} หน่วยงาน &middot; ${info.totals.total} เครื่อง</span>
+      <button class="pdf-btn" onclick="exportDayPDF()">Export เป็น PDF</button>
     </div>
     <table class="detail-table">
       <thead><tr><th>หน่วยงาน / ตึก</th>${data.types.map(t=>`<th style="text-align:right">${t}</th>`).join('')}<th style="text-align:right">รวม</th></tr></thead>
@@ -674,6 +698,12 @@ function selectDate(d){
     </table>
   `;
 }
+
+function exportDayPDF(){
+  document.body.classList.add('printing-day');
+  window.print();
+}
+window.addEventListener('afterprint', ()=> document.body.classList.remove('printing-day'));
 
 // ---------- sync (live fetch) ----------
 function setSync(state, text){
