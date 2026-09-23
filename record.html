@@ -314,9 +314,22 @@ form{gap:16px}
         <label class="opt"><input type="radio" name="ward" value="ศัลย์ หญิง"> ศัลย์ หญิง</label>
         <label class="opt"><input type="radio" name="ward" value="TM"> TM</label>
         <label class="opt"><input type="radio" name="ward" value="ศัลยกรรมกระดูก"> ศัลยกรรมกระดูก</label>
+        <label class="opt"><input type="radio" name="ward" value="ดบ"> ดบ</label>
+        <label class="opt"><input type="radio" name="ward" value="ดล"> ดล</label>
+        <label class="opt"><input type="radio" name="ward" value="PICU"> PICU</label>
         <label class="opt"><input type="radio" name="ward" value="__other__"> อื่นๆ:</label>
         <input type="text" class="other-input" id="wardOther" placeholder="ระบุหน่วยงาน">
       </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="icon-badge">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 6v13M3 14h18v5M21 14v-2a3 3 0 0 0-3-3h-7v5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="11" r="2" stroke="#fff" stroke-width="2"/></svg>
+        </div>
+        <label>เตียง <span class="req">*</span></label>
+      </div>
+      <input type="text" id="bedNo" placeholder="กรอกหมายเลขเตียง" required>
     </div>
 
     <div class="card">
@@ -465,9 +478,13 @@ form.addEventListener('submit', async function(e){
   const modeRadio = form.querySelector('input[name=mode]:checked');
   const ventChecks = Array.from(form.querySelectorAll('input[name=vent_type]:checked'));
   const machineNo = document.getElementById('machineNo').value.trim();
+  const bedNo = document.getElementById('bedNo').value.trim();
 
   if(!wardRadio || (wardRadio.value === '__other__' && !wardOther.value.trim())){
     showStatus('err', 'กรุณาเลือกหรือระบุหน่วยงาน'); return;
+  }
+  if(!bedNo){
+    showStatus('err', 'กรุณากรอกหมายเลขเตียง'); return;
   }
   if(ventChecks.length === 0){
     showStatus('err', 'กรุณาเลือกเครื่องช่วยหายใจอย่างน้อย 1 รายการ'); return;
@@ -489,6 +506,7 @@ form.addEventListener('submit', async function(e){
     round_date: now.toISOString().slice(0,10),
     ward: ward,
     ward_raw: ward,
+    bed: bedNo,
     vent_type: ventType,
     vent_type_raw: ventType,
     machine_no: machineNo,

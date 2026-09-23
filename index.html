@@ -610,7 +610,8 @@ function normWard(raw){
   let key = w.toLowerCase().replace(/\./g,'').trim();
   let keyNoSpace = key.replace(/\s+/g,'');
   const mapping = {
-    'icu100':'ICU 100', 'icu':'ICU 100', 'icu100ปี':'ICU 100', 'i100':'ICU 100'
+    'icu100':'ICU 100', 'icu':'ICU 100', 'icu100ปี':'ICU 100', 'i100':'ICU 100',
+    'picu':'PICU'
   };
   if(mapping[keyNoSpace]) return mapping[keyNoSpace];
   if(w==='ดล'||w==='ดล.') return 'ดล';
