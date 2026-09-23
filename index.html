@@ -348,6 +348,28 @@ table.due-table tr:last-child td{border-bottom:none;}
 .due-status.ok{background:#E5F3EB; color:var(--good);}
 .due-more{margin-top:10px; font-size:12.5px; color:var(--slate-500);}
 
+/* ===== raw row list (delete for mis-keyed entries) ===== */
+.raw-panel{margin-top:24px; padding-top:20px; border-top:1px solid var(--border);}
+.raw-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
+.raw-head h4{margin:0; font-size:14px; color:var(--navy-900); font-weight:700;}
+.raw-hint{font-size:11.5px; color:var(--slate-500);}
+.raw-table-wrap{overflow-x:auto;}
+table.raw-table{width:100%; border-collapse:collapse; font-size:12.5px; white-space:nowrap;}
+table.raw-table th{
+  text-align:left; padding:8px 9px;
+  font-size:11px; text-transform:uppercase; letter-spacing:0.03em;
+  color:var(--slate-500); border-bottom:2px solid var(--border);
+  font-weight:700;
+}
+table.raw-table td{padding:8px 9px; border-bottom:1px solid var(--border);}
+table.raw-table tr:last-child td{border-bottom:none;}
+.del-btn{
+  background:#FCE9E5; color:#B3402A; border:1px solid #F3C9C0;
+  font-family:'Sarabun',sans-serif; font-weight:600; font-size:12px;
+  padding:5px 12px; border-radius:8px; cursor:pointer;
+}
+.del-btn:hover{background:#F8D5CD;}
+
 .pdf-btn{
   background:var(--white); color:var(--teal-600); border:1px solid var(--teal-600);
   font-family:'Sarabun',sans-serif; font-weight:600; font-size:12px;
@@ -370,6 +392,7 @@ footer{
   body.printing-day .chart-panel,
   body.printing-day .ward-panel,
   body.printing-day .due-panel,
+  body.printing-day .raw-panel,
   body.printing-day .explorer-panel .section-title,
   body.printing-day .date-nav,
   body.printing-day .pdf-btn,
@@ -526,6 +549,14 @@ let CURRENT = null;
 
 function fmt(n){ return (n||0).toLocaleString('en-US'); }
 
+// escapes free-text values (ward "other", mode "other", notes, ...) before they're
+// injected into innerHTML — this data comes from an unauthenticated public form.
+function escapeHtml(s){
+  return String(s===null||s===undefined?'':s).replace(/[&<>"']/g, c=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
 function thaiDate(iso){
   const months = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   const d = new Date(iso+'T00:00:00');
@@ -633,7 +664,14 @@ function buildDataFromRows(rows){
 
     const dueISO = thaiShortToISO(r.due_change_date);
 
-    if(!perDate[date]) perDate[date] = {wards:{}, totals:{total:0}};
+    if(!perDate[date]) perDate[date] = {wards:{}, totals:{total:0}, rows:[]};
+    if(r.id!=null){
+      perDate[date].rows.push({
+        id:r.id, ward, bed:r.bed||'', ventType:type, machineNo:r.machine_no||'',
+        mode:r.mode||'', rrVt:r.rr_vt||'', volume:r.volume||'',
+        dueRaw:r.due_change_date||'', notes:r.notes||'', recordedAt:r.recorded_at||''
+      });
+    }
     if(!perDate[date].wards[ward]) perDate[date].wards[ward] = {total:0, dueSoon:null};
     perDate[date].wards[ward][type] = (perDate[date].wards[ward][type]||0)+1;
     perDate[date].wards[ward].total += 1;
@@ -660,6 +698,8 @@ function buildDataFromRows(rows){
   });
 
   if(!anyValid) return null;
+
+  Object.values(perDate).forEach(p=> p.rows.sort((a,b)=> (a.recordedAt||'').localeCompare(b.recordedAt||'')));
 
   const dueList = Object.values(deviceLatest)
     .filter(d=>d.dueISO)
@@ -710,11 +750,11 @@ function render(data, source){
       const pct = total ? (obj[t]/total*100) : 0;
       return `<span class="stack-seg" style="width:${pct}%; background:${typeColor(t,i)}"></span>`;
     }).join('');
-    const typeChips = data.types.map((t,i)=>`<span class="wtype"><span class="dot" style="background:${typeColor(t,i)}"></span>${t} <b>${fmt(obj[t])}</b></span>`).join('');
+    const typeChips = data.types.map((t,i)=>`<span class="wtype"><span class="dot" style="background:${typeColor(t,i)}"></span>${escapeHtml(t)} <b>${fmt(obj[t])}</b></span>`).join('');
     const card = document.createElement('div');
     card.className='ward-card';
     card.innerHTML = `
-      <div class="wname">${ward}</div>
+      <div class="wname">${escapeHtml(ward)}</div>
       <div class="wtotal">รวมทั้งหมด <b>${fmt(total)}</b> ครั้ง</div>
       <div class="stack-bar">${segs}</div>
       <div class="wtypes">${typeChips}</div>
@@ -733,9 +773,9 @@ function render(data, source){
     const rows = shown.map(item=>{
       const st = dueStatus(item.dueISO);
       return `<tr>
-        <td>${item.ward}</td>
-        <td class="mono">${item.machineNo}</td>
-        <td>${item.ventType||'-'}</td>
+        <td>${escapeHtml(item.ward)}</td>
+        <td class="mono">${escapeHtml(item.machineNo)}</td>
+        <td>${escapeHtml(item.ventType||'-')}</td>
         <td class="mono">${thaiDate(item.dueISO)}</td>
         <td><span class="due-status ${st.cls}">${st.label}</span></td>
       </tr>`;
@@ -751,7 +791,7 @@ function render(data, source){
 
   // trend legend
   const legend = document.getElementById('trendLegend');
-  legend.innerHTML = data.types.map((t,i)=>`<div class="legend-item"><span class="dot" style="background:${typeColor(t,i)}"></span>${t}</div>`).join('');
+  legend.innerHTML = data.types.map((t,i)=>`<div class="legend-item"><span class="dot" style="background:${typeColor(t,i)}"></span>${escapeHtml(t)}</div>`).join('');
 
   // trend chart
   if(trendChartInstance) trendChartInstance.destroy();
@@ -833,10 +873,30 @@ function selectDate(d){
     const dueCell = obj.dueSoon
       ? `<td class="mono">${thaiDate(obj.dueSoon)} <span class="due-status ${dueStatus(obj.dueSoon).cls}">${dueStatus(obj.dueSoon).label}</span></td>`
       : `<td>-</td>`;
-    return `<tr><td>${ward}</td>${cells}<td class="num"><b>${obj.total}</b></td>${dueCell}</tr>`;
+    return `<tr><td>${escapeHtml(ward)}</td>${cells}<td class="num"><b>${obj.total}</b></td>${dueCell}</tr>`;
   }).join('');
 
   const totalCells = data.types.map(t=>`<td class="num">${info.totals[t]||0}</td>`).join('');
+
+  const rawRows = info.rows || [];
+  const rawRowsHtml = rawRows.map(row=>{
+    const dueISO = thaiShortToISO(row.dueRaw);
+    const dueCell = row.dueRaw
+      ? `${escapeHtml(row.dueRaw)}${dueISO ? ` <span class="due-status ${dueStatus(dueISO).cls}">${dueStatus(dueISO).label}</span>` : ''}`
+      : '-';
+    return `<tr data-row-id="${escapeHtml(row.id)}">
+      <td>${escapeHtml(row.ward)}</td>
+      <td>${escapeHtml(row.bed)||'-'}</td>
+      <td>${escapeHtml(row.ventType)}</td>
+      <td class="mono">${escapeHtml(row.machineNo)||'-'}</td>
+      <td>${escapeHtml(row.mode)||'-'}</td>
+      <td class="mono">${escapeHtml(row.rrVt)||'-'}</td>
+      <td class="mono">${escapeHtml(row.volume)||'-'}</td>
+      <td class="mono">${dueCell}</td>
+      <td>${escapeHtml(row.notes)||'-'}</td>
+      <td><button class="del-btn" data-id="${escapeHtml(row.id)}">ลบ</button></td>
+    </tr>`;
+  }).join('');
 
   detail.innerHTML = `
     <div class="detail-head">
@@ -845,13 +905,50 @@ function selectDate(d){
       <button class="pdf-btn" onclick="exportDayPDF()">Export เป็น PDF</button>
     </div>
     <table class="detail-table">
-      <thead><tr><th>หน่วยงาน / ตึก</th>${data.types.map(t=>`<th style="text-align:right">${t}</th>`).join('')}<th style="text-align:right">รวม</th><th>วันที่ครบเปลี่ยนใกล้สุด</th></tr></thead>
+      <thead><tr><th>หน่วยงาน / ตึก</th>${data.types.map(t=>`<th style="text-align:right">${escapeHtml(t)}</th>`).join('')}<th style="text-align:right">รวม</th><th>วันที่ครบเปลี่ยนใกล้สุด</th></tr></thead>
       <tbody>
         ${rows}
         <tr class="total-row"><td>รวมทั้งหมด</td>${totalCells}<td class="num">${info.totals.total}</td><td></td></tr>
       </tbody>
     </table>
+
+    <div class="raw-panel">
+      <div class="raw-head">
+        <h4>รายการดิบวันนี้ (สำหรับลบ กรณีคีย์ผิด)</h4>
+        <span class="raw-hint">ลบได้เฉพาะรายการย้อนหลังไม่เกิน 30 วัน</span>
+      </div>
+      ${rawRows.length===0 ? `<div class="due-empty">ไม่มีรายการดิบสำหรับวันนี้</div>` : `
+      <div class="raw-table-wrap">
+        <table class="raw-table">
+          <thead><tr><th>หน่วยงาน</th><th>เตียง</th><th>ประเภท</th><th>เลขเครื่อง</th><th>Mode</th><th>RR/VT</th><th>Volume</th><th>วันที่ครบเปลี่ยน</th><th>หมายเหตุ</th><th></th></tr></thead>
+          <tbody>${rawRowsHtml}</tbody>
+        </table>
+      </div>`}
+    </div>
   `;
+
+  detail.querySelectorAll('.del-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteRound(btn.dataset.id, d));
+  });
+}
+
+async function deleteRound(id, d){
+  if(!confirm('ยืนยันการลบรายการนี้? การลบไม่สามารถย้อนกลับได้')) return;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/ventilator_rounds?id=eq.${encodeURIComponent(id)}`, {
+      method:'DELETE',
+      headers:{
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Prefer': 'return=minimal'
+      }
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    await syncNow();
+    if(CURRENT && CURRENT.perDate[d]) selectDate(d);
+  }catch(err){
+    alert('ลบรายการไม่สำเร็จ: '+err.message);
+  }
 }
 
 function exportDayPDF(){
@@ -873,7 +970,7 @@ async function fetchAllRoundsFromSupabase(){
   let all = [];
   while(true){
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/ventilator_rounds?select=recorded_at,round_date,ward,vent_type,machine_no,due_change_date`,
+      `${SUPABASE_URL}/rest/v1/ventilator_rounds?select=id,recorded_at,round_date,ward,vent_type,machine_no,due_change_date,bed,mode,rr_vt,volume,notes`,
       {
         cache:'no-store',
         headers:{
