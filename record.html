@@ -363,10 +363,10 @@ form{gap:16px}
         <div class="icon-badge">
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 8v4l3 2" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="13" r="8" stroke="#fff" stroke-width="2"/><path d="M9 2h6M12 2v3" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
         </div>
-        <label>Mode <span class="req">*</span></label>
+        <label>Mode</label>
       </div>
       <div class="opt-grid" id="modeGroup">
-        <label class="opt"><input type="radio" name="mode" value="PCV" required> PCV</label>
+        <label class="opt"><input type="radio" name="mode" value="PCV"> PCV</label>
         <label class="opt"><input type="radio" name="mode" value="T-piece"> T-piece</label>
         <label class="opt"><input type="radio" name="mode" value="CMV"> CMV</label>
         <label class="opt"><input type="radio" name="mode" value="ASV"> ASV</label>
@@ -490,12 +490,12 @@ form.addEventListener('submit', async function(e){
   if(!machineNo){
     showStatus('err', 'กรุณากรอกเลขเครื่อง'); return;
   }
-  if(!modeRadio || (modeRadio.value === '__other__' && !modeOther.value.trim())){
-    showStatus('err', 'กรุณาเลือกหรือระบุ Mode'); return;
+  if(modeRadio && modeRadio.value === '__other__' && !modeOther.value.trim()){
+    showStatus('err', 'กรุณาระบุ Mode อื่นๆ'); return;
   }
 
   const ward = wardRadio.value === '__other__' ? wardOther.value.trim() : wardRadio.value;
-  const mode = modeRadio.value === '__other__' ? modeOther.value.trim() : modeRadio.value;
+  const mode = !modeRadio ? null : (modeRadio.value === '__other__' ? modeOther.value.trim() : modeRadio.value);
   const ventType = ventChecks.map(function(c){ return c.value; }).join(', ');
   const now = new Date();
 
