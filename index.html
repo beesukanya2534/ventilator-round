@@ -348,6 +348,25 @@ table.due-table tr:last-child td{border-bottom:none;}
 .due-status.ok{background:#E5F3EB; color:var(--good);}
 .due-more{margin-top:10px; font-size:12.5px; color:var(--slate-500);}
 
+.due-toggle{
+  width:100%;
+  background:none; border:none; padding:0;
+  cursor:pointer;
+  font-family:'Sarabun',sans-serif;
+}
+.due-toggle .chev{
+  transition:transform .18s ease;
+  color:var(--slate-500);
+  font-size:11px;
+}
+.due-panel.open .due-toggle .chev{transform:rotate(90deg);}
+.due-body{
+  max-height:0;
+  overflow:hidden;
+  transition:max-height .22s ease;
+}
+.due-panel.open .due-body{ max-height:2000px; }
+
 /* ===== raw row list (delete for mis-keyed entries) ===== */
 .raw-panel{margin-top:24px; padding-top:20px; border-top:1px solid var(--border);}
 .raw-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
@@ -519,9 +538,11 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
     <div class="ward-grid" id="wardGrid"></div>
   </div>
 
-  <div class="panel due-panel">
-    <div class="section-title">เครื่องช่วยหายใจที่ใกล้ / เลยกำหนดเปลี่ยน</div>
-    <div id="dueList"></div>
+  <div class="panel due-panel" id="duePanel">
+    <button class="section-title due-toggle" id="dueToggle" type="button">
+      <span class="chev">&#9656;</span> เครื่องช่วยหายใจที่ใกล้ / เลยกำหนดเปลี่ยน
+    </button>
+    <div id="dueList" class="due-body"></div>
   </div>
 
   <div class="panel explorer-panel">
@@ -870,10 +891,10 @@ function selectDate(d){
 
   let rows = wardRows.map(([ward,obj])=>{
     const cells = data.types.map(t=>`<td class="num">${obj[t]||0}</td>`).join('');
-    const dueCell = obj.dueSoon
-      ? `<td class="mono">${thaiDate(obj.dueSoon)} <span class="due-status ${dueStatus(obj.dueSoon).cls}">${dueStatus(obj.dueSoon).label}</span></td>`
-      : `<td>-</td>`;
-    return `<tr><td>${escapeHtml(ward)}</td>${cells}<td class="num"><b>${obj.total}</b></td>${dueCell}</tr>`;
+    const dueCells = obj.dueSoon
+      ? `<td class="mono">${thaiDate(obj.dueSoon)}</td><td><span class="due-status ${dueStatus(obj.dueSoon).cls}">${dueStatus(obj.dueSoon).label}</span></td>`
+      : `<td>-</td><td>-</td>`;
+    return `<tr><td>${escapeHtml(ward)}</td>${cells}<td class="num"><b>${obj.total}</b></td>${dueCells}</tr>`;
   }).join('');
 
   const totalCells = data.types.map(t=>`<td class="num">${info.totals[t]||0}</td>`).join('');
@@ -881,8 +902,8 @@ function selectDate(d){
   const rawRows = info.rows || [];
   const rawRowsHtml = rawRows.map(row=>{
     const dueISO = thaiShortToISO(row.dueRaw);
-    const dueCell = row.dueRaw
-      ? `${escapeHtml(row.dueRaw)}${dueISO ? ` <span class="due-status ${dueStatus(dueISO).cls}">${dueStatus(dueISO).label}</span>` : ''}`
+    const dueStatusCell = dueISO
+      ? `<span class="due-status ${dueStatus(dueISO).cls}">${dueStatus(dueISO).label}</span>`
       : '-';
     return `<tr data-row-id="${escapeHtml(row.id)}">
       <td>${escapeHtml(row.ward)}</td>
@@ -892,7 +913,8 @@ function selectDate(d){
       <td>${escapeHtml(row.mode)||'-'}</td>
       <td class="mono">${escapeHtml(row.rrVt)||'-'}</td>
       <td class="mono">${escapeHtml(row.volume)||'-'}</td>
-      <td class="mono">${dueCell}</td>
+      <td class="mono">${escapeHtml(row.dueRaw)||'-'}</td>
+      <td>${dueStatusCell}</td>
       <td>${escapeHtml(row.notes)||'-'}</td>
       <td><button class="del-btn" data-id="${escapeHtml(row.id)}">ลบ</button></td>
     </tr>`;
@@ -905,10 +927,10 @@ function selectDate(d){
       <button class="pdf-btn" onclick="exportDayPDF()">Export เป็น PDF</button>
     </div>
     <table class="detail-table">
-      <thead><tr><th>หน่วยงาน / ตึก</th>${data.types.map(t=>`<th style="text-align:right">${escapeHtml(t)}</th>`).join('')}<th style="text-align:right">รวม</th><th>วันที่ครบเปลี่ยนใกล้สุด</th></tr></thead>
+      <thead><tr><th>หน่วยงาน / ตึก</th>${data.types.map(t=>`<th style="text-align:right">${escapeHtml(t)}</th>`).join('')}<th style="text-align:right">รวม</th><th>วันที่ครบเปลี่ยนใกล้สุด</th><th>สถานะ</th></tr></thead>
       <tbody>
         ${rows}
-        <tr class="total-row"><td>รวมทั้งหมด</td>${totalCells}<td class="num">${info.totals.total}</td><td></td></tr>
+        <tr class="total-row"><td>รวมทั้งหมด</td>${totalCells}<td class="num">${info.totals.total}</td><td></td><td></td></tr>
       </tbody>
     </table>
 
@@ -920,7 +942,7 @@ function selectDate(d){
       ${rawRows.length===0 ? `<div class="due-empty">ไม่มีรายการดิบสำหรับวันนี้</div>` : `
       <div class="raw-table-wrap">
         <table class="raw-table">
-          <thead><tr><th>หน่วยงาน</th><th>เตียง</th><th>ประเภท</th><th>เลขเครื่อง</th><th>Mode</th><th>RR/VT</th><th>Volume</th><th>วันที่ครบเปลี่ยน</th><th>หมายเหตุ</th><th></th></tr></thead>
+          <thead><tr><th>หน่วยงาน</th><th>เตียง</th><th>ประเภท</th><th>เลขเครื่อง</th><th>Mode</th><th>RR/VT</th><th>Volume</th><th>วันที่ครบเปลี่ยน</th><th>สถานะ</th><th>หมายเหตุ</th><th></th></tr></thead>
           <tbody>${rawRowsHtml}</tbody>
         </table>
       </div>`}
@@ -1011,6 +1033,7 @@ async function syncNow(){
 }
 
 document.getElementById('syncBtn').addEventListener('click', syncNow);
+document.getElementById('dueToggle').addEventListener('click', ()=> document.getElementById('duePanel').classList.toggle('open'));
 
 // initial: render fallback immediately so the UI isn't empty, then try live
 render(FALLBACK, 'fallback');
