@@ -155,19 +155,34 @@ body{
   display:flex; align-items:center; gap:10px; flex-wrap:wrap;
 }
 .fy-label{font-size:12px; font-weight:700; color:var(--slate-600); display:flex; align-items:center; gap:6px;}
-.fy-pills{display:flex; gap:8px; flex-wrap:wrap;}
-.fy-pill{
-  display:inline-flex; align-items:center; gap:6px;
-  background:var(--white); border:1px solid var(--border);
-  color:var(--slate-600);
-  font-family:'Sarabun',sans-serif; font-weight:600; font-size:12.5px;
-  padding:7px 14px; border-radius:20px; cursor:pointer;
-  box-shadow:var(--shadow);
+.fy-select-wrap{
+  position:relative;
+  display:inline-flex; align-items:center;
 }
-.fy-pill:hover{border-color:var(--teal-500); color:var(--teal-600);}
-.fy-pill.active{background:var(--navy-900); border-color:var(--navy-900); color:#fff;}
-.fy-pill svg{width:13px;height:13px; flex-shrink:0;}
-.fy-pill.empty{opacity:0.55;}
+.fy-select-wrap svg{
+  position:absolute; left:12px; pointer-events:none;
+  width:14px;height:14px; color:var(--slate-500);
+}
+.fy-select-wrap::after{
+  content:"";
+  position:absolute; right:13px; top:50%;
+  width:7px;height:7px;
+  border-right:2px solid var(--slate-500); border-bottom:2px solid var(--slate-500);
+  transform:translateY(-65%) rotate(45deg);
+  pointer-events:none;
+}
+#fySelect{
+  appearance:none; -webkit-appearance:none;
+  background:var(--white); border:1px solid var(--border);
+  color:var(--slate-900);
+  font-family:'Sarabun',sans-serif; font-weight:700; font-size:13.5px;
+  padding:9px 34px 9px 34px; border-radius:12px; cursor:pointer;
+  box-shadow:var(--shadow);
+  min-width:190px;
+}
+#fySelect:hover{border-color:var(--teal-500);}
+#fySelect:focus{outline:2px solid var(--teal-500); outline-offset:1px;}
+#fySelect option.empty{color:var(--slate-500);}
 .fy-empty-msg{
   text-align:center; color:var(--slate-500); font-size:14px;
   padding:60px 20px;
@@ -542,11 +557,11 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
 </div>
 
 <div class="fy-bar">
-  <span class="fy-label">
+  <span class="fy-label">ปีงบประมาณ</span>
+  <div class="fy-select-wrap">
     <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-    ปีงบประมาณ
-  </span>
-  <div class="fy-pills" id="fyPills"></div>
+    <select id="fySelect"></select>
+  </div>
 </div>
 
 <div class="wrap">
@@ -884,31 +899,24 @@ function buildDataFromRows(rows){
 
 // ---------- fiscal-year picker ----------
 function renderFyBar(){
-  const pillsEl = document.getElementById('fyPills');
+  const selectEl = document.getElementById('fySelect');
   const years = fiscalYearOptions(FULL_DATA);
   const yearHasData = fy=>{
     const [s,e] = fiscalYearRangeISO(fy);
     return FULL_DATA.dates.some(d=> d>=s && d<=e);
   };
-  const pillHtml = (label, active, empty, onclick) => `
-    <button type="button" class="fy-pill${active?' active':''}${empty?' empty':''}" data-fy="${label.fy}">
-      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      ${label.text}
-    </button>`;
-  const all = pillHtml({fy:'all', text:'ทั้งหมด'}, selectedFY==='all', false);
-  const yearPills = years.map(fy=>{
-    const [s,e] = fiscalYearRangeISO(fy);
-    return pillHtml({fy, text:`ปีงบ ${fy}`}, selectedFY===fy, !yearHasData(fy));
-  }).join('');
-  pillsEl.innerHTML = all + yearPills;
-  pillsEl.querySelectorAll('.fy-pill').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const v = btn.dataset.fy;
-      selectedFY = v==='all' ? 'all' : Number(v);
-      renderFyBar();
-      applyFilterAndRender();
-    });
-  });
+  const optionHtml = (value, text, selected, empty) =>
+    `<option value="${value}"${selected?' selected':''}${empty?' class="empty"':''}>${text}</option>`;
+  const allOpt = optionHtml('all', 'ทั้งหมด', selectedFY==='all', false);
+  const yearOpts = years.map(fy=>
+    optionHtml(fy, `ปีงบ ${fy}${yearHasData(fy)?'':' (ยังไม่มีข้อมูล)'}`, selectedFY===fy, !yearHasData(fy))
+  ).join('');
+  selectEl.innerHTML = allOpt + yearOpts;
+  selectEl.onchange = ()=>{
+    const v = selectEl.value;
+    selectedFY = v==='all' ? 'all' : Number(v);
+    applyFilterAndRender();
+  };
 }
 
 function applyFilterAndRender(){
