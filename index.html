@@ -357,6 +357,48 @@ footer{
   body.printing-day .explorer{ display:block; }
   body.printing-day .explorer-panel{ box-shadow:none; border:none; padding:0; margin:0; }
 }
+
+/* ===== Match the Round Ventilator form theme ===== */
+:root{
+  --navy-900:#9D174D; --navy-800:#A91D58; --navy-700:#BE2865;
+  --teal-600:#D92770; --teal-500:#EA4D8A; --teal-100:#FCE8F1;
+  --amber-500:#D99A28; --coral-500:#C94F71; --violet-500:#9B72BC;
+  --slate-900:#34212C; --slate-600:#80556A; --slate-500:#967487;
+  --slate-300:#E8C9D7; --border:#F0D8E3; --paper:#FFF7FB;
+  --shadow:0 3px 14px rgba(130,48,83,.07),0 8px 22px rgba(130,48,83,.035);
+}
+body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
+.header{background:linear-gradient(105deg,#F9DDE9 0%,#FFF5F9 50%,#F8D8E6 100%);color:#34212C}
+.header::after{right:-4%;top:auto;bottom:-42px;width:108%;height:84px;border-radius:50%;background:rgba(255,255,255,.64)}
+.brand-mark{background:#FCE8F1;border:1px solid #F0C7D9;box-shadow:0 5px 14px rgba(130,48,83,.08)}
+.header .sub{color:#80556A}
+.eyebrow{color:#B52360}
+.hm-item .num{color:#9D174D}
+.hm-item .lbl{color:#80556A}
+.record-link{background:linear-gradient(110deg,#E83E82,#CE1E63);color:#fff;box-shadow:0 6px 15px rgba(194,24,91,.20)}
+.record-link:hover{background:linear-gradient(110deg,#D92770,#B91C5C)}
+.sync-btn{background:#D92770}
+.sync-btn:hover{background:#9D174D}
+.sync-dot.loading{background:#EA4D8A}
+.section-title{color:#80556A}
+.section-title::before{background:#EA4D8A}
+.kpi-card{border-color:#F0D8E3}
+.kpi-card .val{color:#9D174D}
+.kpi-card.accent-c2 .val{color:#D92770}
+.kpi-card.accent-hf .val{color:#BE2865}
+.kpi-card.accent-bird .val{color:#C94F71}
+.ward-card{background:linear-gradient(180deg,#FFFCFD 0%,#FFF3F8 100%)}
+.ward-card:hover{box-shadow:0 6px 18px rgba(130,48,83,.09)}
+.stack-bar{background:#F8E5ED}
+.date-btn.active{background:#D92770}
+.detail-head h3{color:#9D174D}
+.detail-head .badge{background:#FCE8F1;color:#B52360}
+.pdf-btn{color:#B52360;border-color:#E84B89}
+.pdf-btn:hover{background:#FCE8F1}
+@media(max-width:860px){
+  .header::after{bottom:-46px}
+}
+
 </style>
 </head>
 <body>
@@ -366,7 +408,7 @@ footer{
     <div class="brand">
       <div class="brand-mark">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-          <path d="M2 12h4l2-7 4 14 2-7h8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 12h4l2-7 4 14 2-7h8" stroke="#D92770" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
       <div>
@@ -450,8 +492,8 @@ const SUPABASE_URL = "https://xbwrawrdnygcfctnxezq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhid3Jhd3JkbnlnY2ZjdG54ZXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5NzE3MzUsImV4cCI6MjEwNTU0NzczNX0.CgPsQ19JBw-4QzwWiuCxYB3p0mmlPsF2CxA7rmJDKdA";
 const FALLBACK = JSON.parse(document.getElementById('__fallback__').textContent);
 
-const BASE_TYPE_COLORS = {'C2':'#0F7C8C','High flow':'#1B4F72','Bird':'#D96C4B'};
-const EXTRA_PALETTE = ['#7C6FC4','#E2A73E','#4C8C4A','#B14C7C'];
+const BASE_TYPE_COLORS = {'C2':'#E83E82','High flow':'#B52360','Bird':'#9B72BC'};
+const EXTRA_PALETTE = ['#F278A7','#C94F71','#D99A28','#80556A'];
 
 let trendChartInstance = null;
 let CURRENT = null;
