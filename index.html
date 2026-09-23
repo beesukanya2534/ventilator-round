@@ -368,6 +368,9 @@ table.due-table tr:last-child td{border-bottom:none;}
 .due-panel.open .due-body{ max-height:2000px; }
 
 /* ===== raw row list (delete for mis-keyed entries) ===== */
+.day-due-panel{margin-top:20px; padding-top:18px; border-top:1px solid var(--border);}
+.day-due-head{font-size:13px; font-weight:700; color:var(--navy-900); margin-bottom:10px;}
+
 .raw-panel{margin-top:24px; padding-top:20px; border-top:1px solid var(--border);}
 .raw-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px;}
 .raw-head h4{margin:0; font-size:14px; color:var(--navy-900); font-weight:700;}
@@ -412,6 +415,7 @@ footer{
   body.printing-day .ward-panel,
   body.printing-day .due-panel,
   body.printing-day .raw-panel,
+  body.printing-day .day-due-panel,
   body.printing-day .explorer-panel .section-title,
   body.printing-day .date-nav,
   body.printing-day .pdf-btn,
@@ -891,13 +895,22 @@ function selectDate(d){
 
   let rows = wardRows.map(([ward,obj])=>{
     const cells = data.types.map(t=>`<td class="num">${obj[t]||0}</td>`).join('');
-    const dueCells = obj.dueSoon
-      ? `<td class="mono">${thaiDate(obj.dueSoon)}</td><td><span class="due-status ${dueStatus(obj.dueSoon).cls}">${dueStatus(obj.dueSoon).label}</span></td>`
-      : `<td>-</td><td>-</td>`;
-    return `<tr><td>${escapeHtml(ward)}</td>${cells}<td class="num"><b>${obj.total}</b></td>${dueCells}</tr>`;
+    return `<tr><td>${escapeHtml(ward)}</td>${cells}<td class="num"><b>${obj.total}</b></td></tr>`;
   }).join('');
 
   const totalCells = data.types.map(t=>`<td class="num">${info.totals[t]||0}</td>`).join('');
+
+  const dueWardRows = wardRows.filter(([,obj])=>obj.dueSoon);
+  const dueDayHtml = dueWardRows.length ? `
+    <div class="day-due-panel">
+      <div class="day-due-head">วันที่ครบเปลี่ยน &middot; รอบวันที่ ${thaiDate(d)}</div>
+      <table class="due-table">
+        <thead><tr><th>หน่วยงาน / ตึก</th><th>วันที่ครบเปลี่ยนใกล้สุด</th><th>สถานะ</th></tr></thead>
+        <tbody>
+          ${dueWardRows.map(([ward,obj])=>`<tr><td>${escapeHtml(ward)}</td><td class="mono">${thaiDate(obj.dueSoon)}</td><td><span class="due-status ${dueStatus(obj.dueSoon).cls}">${dueStatus(obj.dueSoon).label}</span></td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : '';
 
   const rawRows = info.rows || [];
   const rawRowsHtml = rawRows.map(row=>{
@@ -927,12 +940,13 @@ function selectDate(d){
       <button class="pdf-btn" onclick="exportDayPDF()">Export เป็น PDF</button>
     </div>
     <table class="detail-table">
-      <thead><tr><th>หน่วยงาน / ตึก</th>${data.types.map(t=>`<th style="text-align:right">${escapeHtml(t)}</th>`).join('')}<th style="text-align:right">รวม</th><th>วันที่ครบเปลี่ยนใกล้สุด</th><th>สถานะ</th></tr></thead>
+      <thead><tr><th>หน่วยงาน / ตึก</th>${data.types.map(t=>`<th style="text-align:right">${escapeHtml(t)}</th>`).join('')}<th style="text-align:right">รวม</th></tr></thead>
       <tbody>
         ${rows}
-        <tr class="total-row"><td>รวมทั้งหมด</td>${totalCells}<td class="num">${info.totals.total}</td><td></td><td></td></tr>
+        <tr class="total-row"><td>รวมทั้งหมด</td>${totalCells}<td class="num">${info.totals.total}</td></tr>
       </tbody>
     </table>
+    ${dueDayHtml}
 
     <div class="raw-panel">
       <div class="raw-head">
