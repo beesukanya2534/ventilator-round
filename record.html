@@ -186,31 +186,122 @@ textarea{resize:vertical; min-height:70px;}
   text-align:center; color:var(--ink-soft); font-size:12.5px;
 }
 .footer-note .quote{font-weight:700; color:var(--pink-800); margin-bottom:4px; font-size:13.5px;}
+
+/* ===== Reference-inspired form refresh ===== */
+:root{
+  --pink-900:#9D174D; --pink-700:#D92770; --pink-600:#EA4D8A;
+  --pink-500:#F278A7; --pink-300:#F8BBD3; --pink-100:#FCE8F1;
+  --pink-050:#FFF7FB; --ink:#34212C; --ink-soft:#80556A;
+  --border:#F0D8E3; --shadow:0 3px 14px rgba(130,48,83,.07);
+}
+body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 50%,#FFF9FC 100%);padding-bottom:0}
+.header{padding:0;min-height:274px;color:var(--ink);background:linear-gradient(105deg,#F9DDE9 0%,#FFF5F9 48%,#F8D8E6 100%);overflow:hidden}
+.header:before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 75% 30%,rgba(255,255,255,.9),transparent 33%),radial-gradient(ellipse at 6% 80%,rgba(234,77,138,.11),transparent 35%);width:auto;height:auto;left:0;bottom:0;border-radius:0}
+.header:after{content:"";position:absolute;left:-4%;right:-4%;bottom:-39px;top:auto;width:auto;height:78px;border-radius:50%;background:rgba(255,255,255,.68)}
+.hero-inner{max-width:1240px;min-height:274px;margin:0 auto;padding:28px 38px 45px;position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:24px}
+.hero-copy{position:relative;z-index:2}
+.hero-kicker{font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.25em;color:#7E5066;margin-bottom:14px}
+.hero-kicker b{color:var(--pink-600);padding:0 7px}
+.hero-heart{display:inline-grid;place-items:center;background:#E64283;color:#fff;border-radius:50%;width:30px;height:30px;font:700 22px Arial;vertical-align:middle;margin-right:8px;box-shadow:0 5px 12px #e6428340}
+.hero-copy h1{font-size:clamp(40px,6vw,68px);line-height:1.05;font-weight:800;letter-spacing:-.035em;color:#34212C;margin:0}
+.hero-copy h1 span{color:#D92770}
+.hero-tagline{display:inline-block;background:#F6D7E5;color:#861646;padding:8px 24px;border-radius:28px;font-size:clamp(17px,2vw,23px);font-weight:700;margin:12px 0 0}
+.hero-tagline span{color:#D92770;margin-left:4px}
+.hero-note{font-size:13px;color:#8B6375;letter-spacing:.08em;margin:8px 0 0 10px}
+.hero-art{position:absolute;right:9%;top:16px;width:370px;height:235px}
+.hero-orbit{position:absolute;border-radius:50%;background:#F8C9DC66}
+.orbit-one{width:212px;height:212px;right:20px;top:4px}
+.orbit-two{width:120px;height:120px;right:205px;top:95px;background:#fff8}
+.monitor{position:absolute;right:4px;bottom:0;width:224px;height:150px;border:8px solid #E6EAF0;border-radius:18px 18px 9px 9px;background:#26354D;box-shadow:0 12px 25px #62213b24}
+.monitor-top{height:22px;padding:0 8px;display:flex;gap:4px;align-items:center;background:#F4F6F9;color:#667085;font:700 8px Arial;letter-spacing:.12em}
+.monitor-top i{height:6px;width:6px;background:#EA4D8A;border-radius:50%}.monitor-top i:nth-child(2){background:#FFC65A}.monitor-top i:nth-child(3){background:#63CBA9}.monitor-top span{margin-left:auto}
+.monitor-screen{width:100%;height:110px;padding:7px 10px}
+.monitor-base{position:absolute;bottom:-17px;left:68px;width:74px;height:10px;background:#C8D0DA;border-radius:0 0 8px 8px}
+.lung-medallion{position:absolute;right:189px;top:13px;width:136px;height:166px;border-radius:76px;background:linear-gradient(150deg,#fff,#FCE8F1);box-shadow:0 10px 22px #86294d16;display:flex;flex-direction:column;align-items:center;justify-content:center;transform:rotate(-4deg)}
+.lung-medallion svg{width:70px;height:82px}
+.lung-medallion span{font-size:12px;font-weight:700;color:#8D1E4A;text-align:center;line-height:1.5}
+.floating-heart{position:absolute;color:#EE7FAB;font-size:22px}
+.heart-a{top:5px;right:2px}.heart-b{bottom:25px;left:0;font-size:17px}
+.dash-link{position:absolute;right:38px;top:24px;z-index:3;border:1px solid #EAC4D4;padding:9px 14px;color:#9D174D;box-shadow:0 3px 10px #852b4a12}
+.dash-link:hover{background:#FFF0F6}
+.wrap{max-width:1240px;margin:-18px auto 0;padding:0 28px;z-index:2}
+form{gap:16px}
+.card{border:1px solid #F1DCE6;border-radius:16px;background:rgba(255,255,255,.88);box-shadow:0 4px 16px rgba(126,57,85,.045);padding:20px 22px;transition:transform .16s ease,box-shadow .16s ease}
+.card:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(126,57,85,.09)}
+.card-head{gap:12px;margin-bottom:14px}
+.icon-badge{width:50px;height:50px;border-radius:13px;background:linear-gradient(145deg,#F05B98,#D92770);box-shadow:0 4px 10px #d9277030}
+.icon-badge svg{width:24px;height:24px}
+.card-head label{font-size:18px;color:#3E2431}
+.opt-grid{gap:8px 18px}
+.opt{font-size:16px;min-height:32px;gap:10px}
+.opt input{width:19px;height:19px}
+.other-input,input[type=text],input[type=date],textarea{border:1px solid #C9CDD4;border-radius:9px;background:#FBFBFC;padding:13px 15px;font-size:15px;color:#34212C}
+.other-input:focus,input[type=text]:focus,input[type=date]:focus,textarea:focus{border-color:#E84B89;box-shadow:0 0 0 3px #E84B8918}
+::placeholder{color:#9498A1}
+.actions{gap:16px;margin-top:2px;align-items:center}
+.btn{min-width:230px;justify-content:center;border-radius:12px;font-size:18px;padding:15px 24px}
+.btn-submit{background:linear-gradient(110deg,#E83E82,#CE1E63);box-shadow:0 6px 15px #c2185b30}
+.btn-reset{border-color:#E8AAC5;color:#C9276B}
+.status-msg{font-size:15px}
+.footer-note{max-width:1240px;margin:24px auto 0;padding:20px 28px 22px;border-top:1px solid #f2d4e1;color:#84576c}
+.footer-note .quote{color:#8B174A;font-size:15px}
+@media(max-width:900px){
+  .hero-inner{padding:32px 26px 44px;min-height:256px}
+  .hero-art{right:2%;opacity:.55;transform:scale(.84);transform-origin:right center}
+  .hero-copy{max-width:70%}
+  .dash-link{right:24px;top:18px}
+  .wrap{padding:0 18px}
+}
+@media(max-width:650px){
+  .header{min-height:270px}
+  .hero-inner{min-height:270px;padding:52px 20px 40px;align-items:flex-start}
+  .hero-copy{max-width:100%;padding-top:6px}
+  .hero-kicker{font-size:9px;letter-spacing:.12em}
+  .hero-copy h1{font-size:42px}
+  .hero-tagline{font-size:16px;padding:7px 14px}
+  .hero-note{font-size:11px}
+  .hero-art{right:-94px;top:77px;opacity:.3;transform:scale(.75);transform-origin:right top}
+  .dash-link{right:16px;top:14px;padding:7px 10px;font-size:11px}
+  .wrap{padding:0 12px}
+  form{grid-template-columns:1fr;gap:12px}
+  .card{padding:17px 16px}
+  .card-head label{font-size:17px}
+  .opt-grid{gap:5px 12px}
+  .opt{font-size:15px}
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .btn{min-width:0;width:100%;font-size:15px;padding:13px 10px}
+  .footer-note{padding:18px 16px}
+}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="header-inner">
-    <div class="brand">
-      <div class="brand-mark">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-          <path d="M2 12h4l2-7 4 14 2-7h8" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <div class="hero-kicker"><span class="hero-heart">♡</span> CHECK <b>•</b> CARE <b>•</b> SAFETY <b>•</b> TOGETHER</div>
+      <h1>Round <span>Ventilator</span></h1>
+      <p class="hero-tagline">ร่วมดูแล...เพื่อการหายใจที่ดีกว่า <span>♥</span></p>
+      <p class="hero-note">บันทึกการตรวจเครื่องช่วยหายใจประจำวัน</p>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
+      <div class="monitor">
+        <div class="monitor-top"><i></i><i></i><i></i><span>VENTILATOR</span></div>
+        <svg class="monitor-screen" viewBox="0 0 250 120" fill="none">
+          <path d="M8 34h34l8-18 13 54 15-37 11 12h30l8-19 12 47 15-39 10 12h41" stroke="#55D7C2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 88h48l10-14 12 25 14-20 12 9h38l10-25 13 45 13-27 12 7h32" stroke="#86B7FF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
+        <div class="monitor-base"></div>
       </div>
-      <div>
-        <h1>Round Ventilator</h1>
-        <p class="sub">ร่วมดูแล...เพื่อการหายใจที่ดีกว่า</p>
-        <div class="badge-row">
-          <span class="badge-pill">CHECK</span>
-          <span class="badge-pill">CARE</span>
-          <span class="badge-pill">SAFETY</span>
-          <span class="badge-pill">TOGETHER</span>
-        </div>
+      <div class="lung-medallion">
+        <svg viewBox="0 0 100 110" fill="none"><path d="M50 12v39M45 46c-13-20-19-21-24-14-7 10-14 34-13 48 1 11 9 17 22 12 13-5 17-20 17-36M55 46c13-20 19-21 24-14 7 10 14 34 13 48-1 11-9 17-22 12-13-5-17-20-17-36M50 38v59M50 58 34 47M50 69 30 63M50 59l16-12M50 71l20-8" stroke="#E54888" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>หายใจปลอดภัย<br>ไปด้วยกันนะคะ ♥</span>
       </div>
+      <span class="floating-heart heart-a">♥</span><span class="floating-heart heart-b">♥</span>
     </div>
     <a href="index.html" class="dash-link">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
       ดูแดชบอร์ด
     </a>
   </div>
