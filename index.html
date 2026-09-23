@@ -266,6 +266,7 @@ body{
 }
 .accordion-head:hover{background:var(--teal-100);}
 .accordion-head .chev{
+  display:inline-block;
   transition:transform .18s ease;
   color:var(--slate-500);
   font-size:11px;
@@ -346,7 +347,7 @@ table.due-table tr:last-child td{border-bottom:none;}
 .due-status.overdue{background:#FCE9E5; color:#B3402A;}
 .due-status.soon{background:#FCF1DC; color:var(--warn);}
 .due-status.ok{background:#E5F3EB; color:var(--good);}
-.due-more{margin-top:10px; font-size:12.5px; color:var(--slate-500);}
+.due-status.change{background:#FCE8F1; color:#B52360; white-space:nowrap;}
 
 .due-toggle{
   width:100%;
@@ -365,7 +366,11 @@ table.due-table tr:last-child td{border-bottom:none;}
   overflow:hidden;
   transition:max-height .22s ease;
 }
-.due-panel.open .due-body{ max-height:2000px; }
+.due-panel.open .due-body{ max-height:none; }
+.sched-group.open .accordion-body{ max-height:none; }
+.sched-group .due-table{margin:4px 0 8px;}
+.sched-overdue{border-color:#F3C9C0;}
+.sched-overdue .accordion-head{background:#FCE9E5; color:#B3402A;}
 
 /* ===== raw row list (delete for mis-keyed entries) ===== */
 .day-due-panel{margin-top:20px; padding-top:18px; border-top:1px solid var(--border);}
@@ -544,7 +549,7 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
 
   <div class="panel due-panel" id="duePanel">
     <button class="section-title due-toggle" id="dueToggle" type="button">
-      <span class="chev">&#9656;</span> เครื่องช่วยหายใจที่ใกล้ / เลยกำหนดเปลี่ยน
+      <span class="chev">&#9656;</span> ตารางเปลี่ยนเครื่อง (อังคาร / พฤหัสบดี)
     </button>
     <div id="dueList" class="due-body"></div>
   </div>
@@ -594,14 +599,6 @@ function thaiMonthLabel(iso){
   return `${months[d.getMonth()]} ${d.getFullYear()+543}`;
 }
 function monthKey(iso){ return iso.slice(0,7); }
-
-function dueStatus(iso){
-  const todayISO = new Date().toISOString().slice(0,10);
-  const days = Math.round((new Date(iso+'T00:00:00') - new Date(todayISO+'T00:00:00')) / 86400000);
-  if(days < 0) return {cls:'overdue', label:`เลยกำหนด ${Math.abs(days)} วัน`};
-  if(days <= 7) return {cls:'soon', label: days===0 ? 'ครบกำหนดวันนี้' : `อีก ${days} วัน`};
-  return {cls:'ok', label:`อีก ${days} วัน`};
-}
 
 function typeColor(t, idx){ return BASE_TYPE_COLORS[t] || EXTRA_PALETTE[idx % EXTRA_PALETTE.length]; }
 
@@ -669,6 +666,53 @@ function thaiShortToISO(raw){
   return `${year}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
 }
 
+// ---------- change-day scheduling (circuits are only changed on Tue / Thu) ----------
+function addDaysISO(iso, n){
+  const d = new Date(iso+'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate()+n);
+  return d.toISOString().slice(0,10);
+}
+function weekdayOf(iso){ return new Date(iso+'T00:00:00Z').getUTCDay(); } // 0=Sun … 6=Sat
+function localTodayISO(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// due Tue -> that Tue; due Wed/Thu -> that Thu; due Fri..Mon -> next Tue
+const CHANGE_DAY_OFFSET = {0:2, 1:1, 2:0, 3:1, 4:0, 5:4, 6:3};
+function changeDayFor(dueISO){
+  if(!dueISO) return null;
+  return addDaysISO(dueISO, CHANGE_DAY_OFFSET[weekdayOf(dueISO)]);
+}
+function thaiWeekday(iso){
+  return ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'][weekdayOf(iso)];
+}
+function changeDayLabel(iso){ return `เปลี่ยน ${thaiWeekday(iso)} ${thaiDate(iso)}`; }
+
+// Groups active devices by the Tue/Thu they must be changed on. A Tuesday that has
+// already passed without the device's due date changing rolls over to that week's Thursday;
+// a Thursday that has passed goes to "overdue".
+function buildChangeSchedule(dueList, todayISO, activeSinceISO){
+  const overdue = [];
+  const byDay = {};
+  dueList.forEach(item=>{
+    if(!item.dueISO || !item.roundDate || item.roundDate < activeSinceISO) return;
+    let changeISO = changeDayFor(item.dueISO);
+    let shifted = false;
+    if(weekdayOf(changeISO)===2 && todayISO > changeISO){
+      changeISO = addDaysISO(changeISO, 2);
+      shifted = true;
+    }
+    const entry = {...item, changeISO, shifted};
+    if(todayISO > changeISO){ overdue.push(entry); return; }
+    (byDay[changeISO] = byDay[changeISO] || []).push(entry);
+  });
+  const byWard = (a,b)=> a.ward.localeCompare(b.ward,'th') || String(a.bed).localeCompare(String(b.bed),'th',{numeric:true});
+  overdue.sort((a,b)=> a.changeISO.localeCompare(b.changeISO) || byWard(a,b));
+  const groups = Object.keys(byDay).sort().map(changeISO=>({changeISO, items:byDay[changeISO].sort(byWard)}));
+  return {overdue, groups};
+}
+
 // ---------- build aggregated structure from raw rows ----------
 function buildDataFromRows(rows){
   const typesSet = new Set();
@@ -717,7 +761,7 @@ function buildDataFromRows(rows){
       const key = ward+'|'+machineNo;
       const recordedAt = r.recorded_at || date;
       if(!deviceLatest[key] || recordedAt > deviceLatest[key].recordedAt){
-        deviceLatest[key] = {ward, machineNo, ventType:type, dueISO, recordedAt, roundDate:date};
+        deviceLatest[key] = {ward, machineNo, ventType:type, dueISO, dueRaw:r.due_change_date||'', bed:r.bed||'', recordedAt, roundDate:date};
       }
     }
   });
@@ -747,7 +791,9 @@ function buildDataFromRows(rows){
 
   const trend = dates.map(d=>({date:d, ...perDate[d].totals}));
 
-  return {wards, types, dates, perDate, overall, overallTotals, trend, dueList};
+  const latestRoundDate = dates[dates.length-1];
+
+  return {wards, types, dates, perDate, overall, overallTotals, trend, dueList, latestRoundDate};
 }
 
 // ---------- rendering ----------
@@ -787,31 +833,35 @@ function render(data, source){
     wardGrid.appendChild(card);
   });
 
-  // due-change list
+  // change schedule (Tue / Thu)
   const dueEl = document.getElementById('dueList');
-  const dueList = data.dueList || [];
-  if(dueList.length === 0){
-    dueEl.innerHTML = `<div class="due-empty">ไม่มีข้อมูลวันที่ครบกำหนดเปลี่ยนในระบบ</div>`;
+  const todayISO = localTodayISO();
+  const activeSinceISO = data.latestRoundDate ? addDaysISO(data.latestRoundDate, -7) : '9999-12-31';
+  const sched = buildChangeSchedule(data.dueList || [], todayISO, activeSinceISO);
+  const scheduleTable = items => `
+    <table class="due-table">
+      <thead><tr><th>หน่วยงาน / ตึก</th><th>เตียง</th><th>เลขเครื่อง</th><th>วันครบ (ที่คีย์)</th><th>หมายเหตุ</th></tr></thead>
+      <tbody>${items.map(it=>`<tr>
+        <td>${escapeHtml(it.ward)}</td>
+        <td>${escapeHtml(it.bed)||'-'}</td>
+        <td class="mono">${escapeHtml(it.machineNo)}</td>
+        <td class="mono">${thaiDate(it.dueISO)}</td>
+        <td>${it.shifted ? '<span class="due-status soon">เลื่อนจากอังคาร</span>' : ''}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  const groupHtml = (title, count, items, cls, open) => `
+    <div class="accordion-month sched-group ${cls}${open ? ' open' : ''}">
+      <button class="accordion-head" type="button"><span><span class="chev">&#9656;</span> ${title}</span><span class="mcount">${count} เครื่อง</span></button>
+      <div class="accordion-body">${scheduleTable(items)}</div>
+    </div>`;
+  if(sched.overdue.length === 0 && sched.groups.length === 0){
+    dueEl.innerHTML = `<div class="due-empty">ไม่มีเครื่องที่ต้องเปลี่ยนในรอบราวล่าสุด</div>`;
   } else {
-    const showLimit = 40;
-    const shown = dueList.slice(0, showLimit);
-    const rows = shown.map(item=>{
-      const st = dueStatus(item.dueISO);
-      return `<tr>
-        <td>${escapeHtml(item.ward)}</td>
-        <td class="mono">${escapeHtml(item.machineNo)}</td>
-        <td>${escapeHtml(item.ventType||'-')}</td>
-        <td class="mono">${thaiDate(item.dueISO)}</td>
-        <td><span class="due-status ${st.cls}">${st.label}</span></td>
-      </tr>`;
-    }).join('');
-    dueEl.innerHTML = `
-      <table class="due-table">
-        <thead><tr><th>หน่วยงาน / ตึก</th><th>เลขเครื่อง</th><th>ประเภท</th><th>วันที่ครบกำหนด</th><th>สถานะ</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      ${dueList.length > showLimit ? `<div class="due-more">และอีก ${fmt(dueList.length - showLimit)} เครื่อง เรียงตามวันที่ใกล้ครบกำหนด</div>` : ''}
-    `;
+    dueEl.innerHTML =
+      (sched.overdue.length ? groupHtml('เลยกำหนด (ยังไม่ได้เปลี่ยน)', sched.overdue.length, sched.overdue, 'sched-overdue', true) : '') +
+      sched.groups.map((g,i)=> groupHtml(`${thaiWeekday(g.changeISO)} ${thaiDate(g.changeISO)}`, g.items.length, g.items, '', i===0)).join('');
+    dueEl.querySelectorAll('.sched-group .accordion-head').forEach(h=>
+      h.addEventListener('click', ()=> h.parentElement.classList.toggle('open')));
   }
 
   // trend legend
@@ -907,7 +957,7 @@ function selectDate(d){
       <table class="due-table">
         <thead><tr><th>หน่วยงาน / ตึก</th><th>วันที่ครบเปลี่ยนใกล้สุด</th><th>สถานะ</th></tr></thead>
         <tbody>
-          ${dueWardRows.map(([ward,obj])=>`<tr><td>${escapeHtml(ward)}</td><td class="mono">${thaiDate(obj.dueSoon)}</td><td><span class="due-status ${dueStatus(obj.dueSoon).cls}">${dueStatus(obj.dueSoon).label}</span></td></tr>`).join('')}
+          ${dueWardRows.map(([ward,obj])=>`<tr><td>${escapeHtml(ward)}</td><td class="mono">${thaiDate(obj.dueSoon)}</td><td><span class="due-status change">${changeDayLabel(changeDayFor(obj.dueSoon))}</span></td></tr>`).join('')}
         </tbody>
       </table>
     </div>` : '';
@@ -916,7 +966,7 @@ function selectDate(d){
   const rawRowsHtml = rawRows.map(row=>{
     const dueISO = thaiShortToISO(row.dueRaw);
     const dueStatusCell = dueISO
-      ? `<span class="due-status ${dueStatus(dueISO).cls}">${dueStatus(dueISO).label}</span>`
+      ? `<span class="due-status change">${changeDayLabel(changeDayFor(dueISO))}</span>`
       : '-';
     return `<tr data-row-id="${escapeHtml(row.id)}">
       <td>${escapeHtml(row.ward)}</td>
