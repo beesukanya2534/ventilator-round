@@ -147,6 +147,32 @@ body{
 .sync-btn:disabled{opacity:0.5; cursor:default;}
 .sync-url{color:var(--slate-500); font-family:'IBM Plex Mono',monospace; font-size:11px; word-break:break-all;}
 
+/* ===== Fiscal-year picker ===== */
+.fy-bar{
+  max-width:1280px;
+  margin:14px auto 0;
+  padding:0 40px;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.fy-label{font-size:12px; font-weight:700; color:var(--slate-600); display:flex; align-items:center; gap:6px;}
+.fy-pills{display:flex; gap:8px; flex-wrap:wrap;}
+.fy-pill{
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--white); border:1px solid var(--border);
+  color:var(--slate-600);
+  font-family:'Sarabun',sans-serif; font-weight:600; font-size:12.5px;
+  padding:7px 14px; border-radius:20px; cursor:pointer;
+  box-shadow:var(--shadow);
+}
+.fy-pill:hover{border-color:var(--teal-500); color:var(--teal-600);}
+.fy-pill.active{background:var(--navy-900); border-color:var(--navy-900); color:#fff;}
+.fy-pill svg{width:13px;height:13px; flex-shrink:0;}
+.fy-pill.empty{opacity:0.55;}
+.fy-empty-msg{
+  text-align:center; color:var(--slate-500); font-size:14px;
+  padding:60px 20px;
+}
+
 /* ===== Layout ===== */
 .wrap{max-width:1280px;margin:0 auto;padding:20px 40px 80px;}
 .section-title{
@@ -515,8 +541,19 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
   </div>
 </div>
 
+<div class="fy-bar">
+  <span class="fy-label">
+    <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    ปีงบประมาณ
+  </span>
+  <div class="fy-pills" id="fyPills"></div>
+</div>
+
 <div class="wrap">
 
+  <div class="fy-empty-msg" id="fyEmptyMsg" style="display:none"></div>
+
+  <div id="dashboardBody">
   <div class="kpi-row">
     <div class="kpi-card">
       <div class="lbl">เครื่องทั้งหมดที่บันทึก (สะสม)</div>
@@ -537,13 +574,13 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
   </div>
 
   <div class="panel chart-panel">
-    <div class="section-title">แนวโน้มจำนวนเครื่องต่อรอบ (ทุกวันที่บันทึก)</div>
+    <div class="section-title" id="trendTitle">แนวโน้มจำนวนเครื่องต่อรอบ (ทุกวันที่บันทึก)</div>
     <div class="chart-box"><canvas id="trendChart"></canvas></div>
     <div class="legend-row" id="trendLegend"></div>
   </div>
 
   <div class="panel ward-panel">
-    <div class="section-title">สรุปรวมแยกตามหน่วยงาน / ตึก (ทุกช่วงเวลา)</div>
+    <div class="section-title" id="wardTitle">สรุปรวมแยกตามหน่วยงาน / ตึก (ทุกช่วงเวลา)</div>
     <div class="ward-grid" id="wardGrid"></div>
   </div>
 
@@ -561,6 +598,7 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
       <div id="dateDetail"></div>
     </div>
   </div>
+  </div>
 
   <footer>Round Ventilator Dashboard &middot; ซิงก์ข้อมูลสดจาก Supabase &middot; หากเชื่อมต่อไม่ได้จะใช้ข้อมูล snapshot ล่าสุดที่ฝังไว้ในไฟล์</footer>
 </div>
@@ -576,6 +614,8 @@ const EXTRA_PALETTE = ['#F278A7','#C94F71','#D99A28','#80556A'];
 
 let trendChartInstance = null;
 let CURRENT = null;
+let FULL_DATA = null;
+let selectedFY = fiscalYearOfISO(localTodayISO());
 
 function fmt(n){ return (n||0).toLocaleString('en-US'); }
 
@@ -677,6 +717,51 @@ function weekdayOf(iso){ return new Date(iso+'T00:00:00Z').getUTCDay(); } // 0=S
 function localTodayISO(){
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ---------- Thai fiscal year (ปีงบประมาณ): 1 ต.ค. (BE-1) – 30 ก.ย. (BE) ----------
+function fiscalYearOfISO(iso){
+  const d = new Date(iso+'T00:00:00');
+  const ceYear = d.getFullYear();
+  const feCE = (d.getMonth()+1 >= 10) ? ceYear+1 : ceYear; // Oct-Dec belongs to the next fiscal year
+  return feCE + 543;
+}
+function fiscalYearRangeISO(feBE){
+  const feCE = feBE - 543;
+  return [`${feCE-1}-10-01`, `${feCE}-09-30`];
+}
+function fiscalYearOptions(data){
+  const years = new Set();
+  (data.dates||[]).forEach(d=> years.add(fiscalYearOfISO(d)));
+  const todayFY = fiscalYearOfISO(localTodayISO());
+  years.add(todayFY);
+  years.add(todayFY+1);
+  return [...years].sort((a,b)=>a-b);
+}
+// derive a reduced aggregate (same shape as buildDataFromRows) covering only [startISO,endISO]
+function filterAggregateByRange(data, startISO, endISO){
+  const dates = data.dates.filter(d=> d>=startISO && d<=endISO);
+  if(dates.length===0) return null;
+  const perDate = {};
+  const overall = {};
+  const overallTotals = {total:0};
+  data.types.forEach(t=> overallTotals[t]=0);
+  const wardsSet = new Set();
+  dates.forEach(d=>{
+    perDate[d] = data.perDate[d];
+    Object.entries(data.perDate[d].wards).forEach(([w,obj])=>{
+      wardsSet.add(w);
+      if(!overall[w]){ overall[w]={total:0}; data.types.forEach(t=>overall[w][t]=0); }
+      data.types.forEach(t=>{ overall[w][t] += obj[t]||0; });
+      overall[w].total += obj.total;
+    });
+    data.types.forEach(t=>{ overallTotals[t] += data.perDate[d].totals[t]||0; });
+    overallTotals.total += data.perDate[d].totals.total;
+  });
+  const wards = [...wardsSet].sort();
+  const trend = dates.map(d=>({date:d, ...perDate[d].totals}));
+  const dueList = (data.dueList||[]).filter(it=> it.roundDate && it.roundDate>=startISO && it.roundDate<=endISO);
+  return {wards, types:data.types, dates, perDate, overall, overallTotals, trend, dueList, latestRoundDate:dates[dates.length-1]};
 }
 
 // due Tue -> that Tue; due Wed/Thu -> that Thu; due Fri..Mon -> next Tue
@@ -797,9 +882,72 @@ function buildDataFromRows(rows){
   return {wards, types, dates, perDate, overall, overallTotals, trend, dueList, latestRoundDate};
 }
 
+// ---------- fiscal-year picker ----------
+function renderFyBar(){
+  const pillsEl = document.getElementById('fyPills');
+  const years = fiscalYearOptions(FULL_DATA);
+  const yearHasData = fy=>{
+    const [s,e] = fiscalYearRangeISO(fy);
+    return FULL_DATA.dates.some(d=> d>=s && d<=e);
+  };
+  const pillHtml = (label, active, empty, onclick) => `
+    <button type="button" class="fy-pill${active?' active':''}${empty?' empty':''}" data-fy="${label.fy}">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      ${label.text}
+    </button>`;
+  const all = pillHtml({fy:'all', text:'ทั้งหมด'}, selectedFY==='all', false);
+  const yearPills = years.map(fy=>{
+    const [s,e] = fiscalYearRangeISO(fy);
+    return pillHtml({fy, text:`ปีงบ ${fy}`}, selectedFY===fy, !yearHasData(fy));
+  }).join('');
+  pillsEl.innerHTML = all + yearPills;
+  pillsEl.querySelectorAll('.fy-pill').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const v = btn.dataset.fy;
+      selectedFY = v==='all' ? 'all' : Number(v);
+      renderFyBar();
+      applyFilterAndRender();
+    });
+  });
+}
+
+function applyFilterAndRender(){
+  if(!FULL_DATA) return;
+  if(selectedFY === 'all'){
+    render(FULL_DATA);
+    return;
+  }
+  const [start, end] = fiscalYearRangeISO(selectedFY);
+  const filtered = filterAggregateByRange(FULL_DATA, start, end);
+  if(!filtered){
+    document.getElementById('dashboardBody').style.display = 'none';
+    const msg = document.getElementById('fyEmptyMsg');
+    msg.style.display = 'block';
+    msg.textContent = `ยังไม่มีข้อมูลในปีงบประมาณ ${selectedFY} (${thaiDate(start)} — ${thaiDate(end)})`;
+    document.getElementById('hmDays').textContent = '0';
+    document.getElementById('hmWards').textContent = '0';
+    document.getElementById('hmTotal').textContent = '0';
+    document.getElementById('dateRangeSub').textContent = `ปีงบประมาณ ${selectedFY} · ${thaiDate(start)} — ${thaiDate(end)} · ยังไม่มีข้อมูล`;
+    return;
+  }
+  render(filtered);
+}
+
+function showData(fullData){
+  FULL_DATA = fullData;
+  renderFyBar();
+  applyFilterAndRender();
+}
+
 // ---------- rendering ----------
 function render(data, source){
   CURRENT = data;
+  document.getElementById('dashboardBody').style.display = '';
+  document.getElementById('fyEmptyMsg').style.display = 'none';
+
+  const periodLabel = selectedFY==='all' ? 'ทุกช่วงเวลา' : `ปีงบประมาณ ${selectedFY}`;
+  document.getElementById('trendTitle').textContent = `แนวโน้มจำนวนเครื่องต่อรอบ (${periodLabel})`;
+  document.getElementById('wardTitle').textContent = `สรุปรวมแยกตามหน่วยงาน / ตึก (${periodLabel})`;
 
   document.getElementById('hmDays').textContent = data.dates.length;
   document.getElementById('hmWards').textContent = data.wards.length;
@@ -1087,10 +1235,10 @@ async function syncNow(){
     const data = buildDataFromRows(rows);
     if(!data) throw new Error('empty');
     const now = new Date();
-    render(data, 'live');
+    showData(data);
     setSync('live', `เชื่อมต่อสำเร็จ &middot; ข้อมูลสด <b>${data.dates.length}</b> วัน &middot; ซิงก์ล่าสุด ${now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}`);
   }catch(err){
-    render(FALLBACK, 'fallback');
+    showData(FALLBACK);
     setSync('stale', `ดึงข้อมูลสดไม่ได้ (${err.message}) &middot; แสดง <b>snapshot</b> ล่าสุดที่ฝังในไฟล์แทน — กดปุ่มด้านขวาเพื่อลองใหม่`);
   }finally{
     btn.disabled = false;
@@ -1101,7 +1249,7 @@ document.getElementById('syncBtn').addEventListener('click', syncNow);
 document.getElementById('dueToggle').addEventListener('click', ()=> document.getElementById('duePanel').classList.toggle('open'));
 
 // initial: render fallback immediately so the UI isn't empty, then try live
-render(FALLBACK, 'fallback');
+showData(FALLBACK);
 setSync('loading', 'กำลังเชื่อมต่อกับ Supabase...');
 syncNow();
 </script>
