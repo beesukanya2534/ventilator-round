@@ -327,9 +327,9 @@ form{gap:16px}
         <div class="icon-badge">
           <svg viewBox="0 0 24 24" fill="none"><path d="M3 6v13M3 14h18v5M21 14v-2a3 3 0 0 0-3-3h-7v5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="11" r="2" stroke="#fff" stroke-width="2"/></svg>
         </div>
-        <label>เตียง <span class="req">*</span></label>
+        <label>เตียง</label>
       </div>
-      <input type="text" id="bedNo" placeholder="กรอกหมายเลขเตียง" required>
+      <input type="text" id="bedNo" placeholder="กรอกหมายเลขเตียง (ถ้ามี)">
     </div>
 
     <div class="card">
@@ -483,9 +483,6 @@ form.addEventListener('submit', async function(e){
   if(!wardRadio || (wardRadio.value === '__other__' && !wardOther.value.trim())){
     showStatus('err', 'กรุณาเลือกหรือระบุหน่วยงาน'); return;
   }
-  if(!bedNo){
-    showStatus('err', 'กรุณากรอกหมายเลขเตียง'); return;
-  }
   if(ventChecks.length === 0){
     showStatus('err', 'กรุณาเลือกเครื่องช่วยหายใจอย่างน้อย 1 รายการ'); return;
   }
@@ -506,7 +503,7 @@ form.addEventListener('submit', async function(e){
     round_date: now.toISOString().slice(0,10),
     ward: ward,
     ward_raw: ward,
-    bed: bedNo,
+    bed: bedNo || null,
     vent_type: ventType,
     vent_type_raw: ventType,
     machine_no: machineNo,
