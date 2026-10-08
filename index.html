@@ -631,9 +631,11 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
     <div id="dueList" class="due-body"></div>
   </div>
 
-  <div class="panel circuit-panel">
-    <div class="section-title" id="circuitTitle">สถิติการเปลี่ยนสาย circuit</div>
-    <div id="circuitStats"></div>
+  <div class="panel circuit-panel due-panel" id="circuitPanel">
+    <button class="section-title due-toggle" id="circuitToggle" type="button">
+      <span class="chev">&#9656;</span> <span id="circuitTitle">สถิติการเปลี่ยนสาย circuit</span>
+    </button>
+    <div id="circuitStats" class="due-body"></div>
   </div>
 
   <div class="panel explorer-panel">
@@ -1481,6 +1483,7 @@ async function syncNow(){
 
 document.getElementById('syncBtn').addEventListener('click', syncNow);
 document.getElementById('dueToggle').addEventListener('click', ()=> document.getElementById('duePanel').classList.toggle('open'));
+document.getElementById('circuitToggle').addEventListener('click', ()=> document.getElementById('circuitPanel').classList.toggle('open'));
 
 // initial: render fallback immediately so the UI isn't empty, then try live
 showData(FALLBACK);
