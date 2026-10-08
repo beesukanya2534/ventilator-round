@@ -1203,11 +1203,23 @@ function renderSchedule(){
   const hadContent = !!dueEl.querySelector('.sched-group');
   const openKeys = new Set([...dueEl.querySelectorAll('.sched-group.open')].map(g=>g.dataset.key));
   const activeSinceISO = data.latestRoundDate ? addDaysISO(data.latestRoundDate, -7) : '9999-12-31';
-  const sched = buildChangeSchedule(data.dueList || [], todayISO, activeSinceISO);
   const map = circuitMap();
   const recOf = it => map.get(changeKey(it.ward, it.machineNo, it.dueISO));
+  // a logged change pushes that machine's next due date to changed_date + 14 days
+  const effectiveDue = (data.dueList || []).map(it=>{
+    const item = {...it};
+    let rec, guard = 0;
+    while((rec = recOf(item)) && guard++ < 50){
+      const next = addDaysISO(rec.changed_date, 14);
+      if(next <= item.dueISO) break;
+      item.dueISO = next;
+      item.lastChange = rec;
+    }
+    return item;
+  });
+  const sched = buildChangeSchedule(effectiveDue, todayISO, activeSinceISO);
 
-  const overdue = sched.overdue.filter(it=> !recOf(it));
+  const overdue = sched.overdue;
   const actionCell = it=>{
     const rec = recOf(it);
     if(rec){
@@ -1226,7 +1238,7 @@ function renderSchedule(){
         <td>${escapeHtml(it.bed)||'-'}</td>
         <td class="mono">${escapeHtml(it.machineNo)}</td>
         <td class="mono">${thaiDate(it.dueISO)}</td>
-        <td>${it.shifted ? '<span class="due-status soon">เลื่อนจากอังคาร</span>' : ''}</td>
+        <td>${it.shifted ? '<span class="due-status soon">เลื่อนจากอังคาร</span> ' : ''}${it.lastChange ? `<span class="due-status ok">เปลี่ยนล่าสุด ${thaiDate(it.lastChange.changed_date)} (+14 วัน)</span>${canUndo(it.lastChange) ? `<button class="undo-btn" type="button" data-act="undo" data-id="${it.lastChange.id}">ยกเลิก</button>` : ''}` : ''}</td>
         <td style="white-space:nowrap">${actionCell(it)}</td>
       </tr>`).join('')}</tbody>
     </table>`;
@@ -1246,10 +1258,9 @@ function renderSchedule(){
     dueEl.innerHTML =
       (overdue.length ? groupHtml('overdue', 'เลยกำหนด (ยังไม่ได้เปลี่ยน)', `${overdue.length} เครื่อง`, overdue, 'sched-overdue', isOpen('overdue', true)) : '') +
       sched.groups.map(g=>{
-        const done = g.items.filter(recOf).length;
         const todayTag = g.changeISO === todayISO ? ' <span class="due-status change">วันนี้</span>' : '';
         return groupHtml(g.changeISO, `${thaiWeekday(g.changeISO)} ${thaiDate(g.changeISO)}${todayTag}`,
-          `เปลี่ยนแล้ว ${done}/${g.items.length} เครื่อง`, g.items, '', isOpen(g.changeISO, g.changeISO === defaultOpenKey));
+          `${g.items.length} เครื่อง`, g.items, '', isOpen(g.changeISO, g.changeISO === defaultOpenKey));
       }).join('');
   }
 
@@ -1273,7 +1284,7 @@ async function markCircuitChange(btn){
     const res = await fetch(`${SUPABASE_URL}/rest/v1/circuit_changes`, {
       method:'POST',
       headers:{...SB_HEADERS, 'Content-Type':'application/json', 'Prefer':'return=representation'},
-      body: JSON.stringify({changed_date: localTodayISO(), ward:d.ward, bed:d.bed||null, machine_no:d.machine, vent_type:d.type||null, due_date:d.due})
+      body: JSON.stringify({changed_date: (FULL_DATA && FULL_DATA.latestRoundDate) || localTodayISO(), ward:d.ward, bed:d.bed||null, machine_no:d.machine, vent_type:d.type||null, due_date:d.due})
     });
     if(res.status === 409){
       CIRCUIT_CHANGES = await fetchCircuitChanges();
