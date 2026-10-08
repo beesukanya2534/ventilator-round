@@ -409,6 +409,30 @@ table.due-table tr:last-child td{border-bottom:none;}
 }
 .due-panel.open .due-body{ max-height:none; }
 .sched-group.open .accordion-body{ max-height:none; }
+.due-badge{
+  margin-left:8px; font-size:11.5px; font-weight:700; letter-spacing:0; text-transform:none;
+  background:#FCE8F1; color:#B52360; padding:3px 10px; border-radius:20px;
+}
+.due-badge:empty{display:none;}
+.change-btn{
+  background:linear-gradient(110deg,#E83E82,#CE1E63); color:#fff; border:none;
+  font-family:'Sarabun',sans-serif; font-weight:700; font-size:12.5px;
+  padding:6px 16px; border-radius:8px; cursor:pointer;
+  box-shadow:0 3px 9px rgba(194,24,91,.22);
+}
+.change-btn:hover{filter:brightness(1.06);}
+.change-btn:disabled{opacity:.55; cursor:default;}
+.undo-btn{
+  background:none; border:1px solid var(--slate-300); color:var(--slate-600);
+  font-family:'Sarabun',sans-serif; font-weight:600; font-size:11.5px;
+  padding:3px 10px; border-radius:8px; cursor:pointer; margin-left:6px;
+}
+.undo-btn:hover{background:var(--teal-100);}
+.stat-block{margin-bottom:24px;}
+.stat-block h4{margin:0 0 10px; font-size:13.5px; color:var(--navy-900); font-weight:700;}
+.stat-bar{display:inline-block; height:8px; border-radius:5px; background:var(--teal-500); vertical-align:middle; min-width:2px;}
+table.due-table td.num, table.due-table th.num{text-align:right; font-family:'IBM Plex Mono',monospace;}
+table.due-table tr.total-row td{font-weight:700; background:var(--paper); border-top:2px solid var(--border);}
 .sched-group .due-table{margin:4px 0 8px;}
 .sched-overdue{border-color:#F3C9C0;}
 .sched-overdue .accordion-head{background:#FCE9E5; color:#B3402A;}
@@ -460,6 +484,7 @@ footer{
   body.printing-day .chart-panel,
   body.printing-day .ward-panel,
   body.printing-day .due-panel,
+  body.printing-day .circuit-panel,
   body.printing-day .raw-panel,
   body.printing-day .day-due-panel,
   body.printing-day .explorer-panel .section-title,
@@ -601,9 +626,14 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
 
   <div class="panel due-panel" id="duePanel">
     <button class="section-title due-toggle" id="dueToggle" type="button">
-      <span class="chev">&#9656;</span> ตารางเปลี่ยนเครื่อง (อังคาร / พฤหัสบดี)
+      <span class="chev">&#9656;</span> ตารางเปลี่ยนเครื่อง (อังคาร / พฤหัสบดี) <span class="due-badge" id="dueBadge"></span>
     </button>
     <div id="dueList" class="due-body"></div>
+  </div>
+
+  <div class="panel circuit-panel">
+    <div class="section-title" id="circuitTitle">สถิติการเปลี่ยนสาย circuit</div>
+    <div id="circuitStats"></div>
   </div>
 
   <div class="panel explorer-panel">
@@ -630,6 +660,7 @@ const EXTRA_PALETTE = ['#F278A7','#C94F71','#D99A28','#80556A'];
 let trendChartInstance = null;
 let CURRENT = null;
 let FULL_DATA = null;
+let CIRCUIT_CHANGES = []; // rows from circuit_changes (logged "เปลี่ยน" button presses)
 let selectedFY = fiscalYearOfISO(localTodayISO());
 
 function fmt(n){ return (n||0).toLocaleString('en-US'); }
@@ -990,36 +1021,8 @@ function render(data, source){
     wardGrid.appendChild(card);
   });
 
-  // change schedule (Tue / Thu)
-  const dueEl = document.getElementById('dueList');
-  const todayISO = localTodayISO();
-  const activeSinceISO = data.latestRoundDate ? addDaysISO(data.latestRoundDate, -7) : '9999-12-31';
-  const sched = buildChangeSchedule(data.dueList || [], todayISO, activeSinceISO);
-  const scheduleTable = items => `
-    <table class="due-table">
-      <thead><tr><th>หน่วยงาน / ตึก</th><th>เตียง</th><th>เลขเครื่อง</th><th>วันครบ (ที่คีย์)</th><th>หมายเหตุ</th></tr></thead>
-      <tbody>${items.map(it=>`<tr>
-        <td>${escapeHtml(it.ward)}</td>
-        <td>${escapeHtml(it.bed)||'-'}</td>
-        <td class="mono">${escapeHtml(it.machineNo)}</td>
-        <td class="mono">${thaiDate(it.dueISO)}</td>
-        <td>${it.shifted ? '<span class="due-status soon">เลื่อนจากอังคาร</span>' : ''}</td>
-      </tr>`).join('')}</tbody>
-    </table>`;
-  const groupHtml = (title, count, items, cls, open) => `
-    <div class="accordion-month sched-group ${cls}${open ? ' open' : ''}">
-      <button class="accordion-head" type="button"><span><span class="chev">&#9656;</span> ${title}</span><span class="mcount">${count} เครื่อง</span></button>
-      <div class="accordion-body">${scheduleTable(items)}</div>
-    </div>`;
-  if(sched.overdue.length === 0 && sched.groups.length === 0){
-    dueEl.innerHTML = `<div class="due-empty">ไม่มีเครื่องที่ต้องเปลี่ยนในรอบราวล่าสุด</div>`;
-  } else {
-    dueEl.innerHTML =
-      (sched.overdue.length ? groupHtml('เลยกำหนด (ยังไม่ได้เปลี่ยน)', sched.overdue.length, sched.overdue, 'sched-overdue', true) : '') +
-      sched.groups.map((g,i)=> groupHtml(`${thaiWeekday(g.changeISO)} ${thaiDate(g.changeISO)}`, g.items.length, g.items, '', i===0)).join('');
-    dueEl.querySelectorAll('.sched-group .accordion-head').forEach(h=>
-      h.addEventListener('click', ()=> h.parentElement.classList.toggle('open')));
-  }
+  renderSchedule();
+  renderCircuitStats();
 
   // trend legend
   const legend = document.getElementById('trendLegend');
@@ -1175,6 +1178,214 @@ function selectDate(d){
   });
 }
 
+// ---------- circuit-change log (ปุ่ม "เปลี่ยน") ----------
+const SB_HEADERS = {'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`};
+const changeKey = (ward, machineNo, dueISO)=> `${ward}|${machineNo}|${dueISO}`;
+function circuitMap(){
+  const m = new Map();
+  CIRCUIT_CHANGES.forEach(c=> m.set(changeKey(c.ward, c.machine_no, c.due_date), c));
+  return m;
+}
+function canUndo(c){ return c.changed_date >= addDaysISO(localTodayISO(), -30); }
+
+async function fetchCircuitChanges(){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/circuit_changes?select=id,changed_date,ward,bed,machine_no,vent_type,due_date,created_at&order=changed_date.asc&limit=10000`,
+    {cache:'no-store', headers:SB_HEADERS});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
+function renderSchedule(){
+  const data = CURRENT;
+  if(!data) return;
+  const dueEl = document.getElementById('dueList');
+  const todayISO = localTodayISO();
+  const hadContent = !!dueEl.querySelector('.sched-group');
+  const openKeys = new Set([...dueEl.querySelectorAll('.sched-group.open')].map(g=>g.dataset.key));
+  const activeSinceISO = data.latestRoundDate ? addDaysISO(data.latestRoundDate, -7) : '9999-12-31';
+  const sched = buildChangeSchedule(data.dueList || [], todayISO, activeSinceISO);
+  const map = circuitMap();
+  const recOf = it => map.get(changeKey(it.ward, it.machineNo, it.dueISO));
+
+  const overdue = sched.overdue.filter(it=> !recOf(it));
+  const actionCell = it=>{
+    const rec = recOf(it);
+    if(rec){
+      return `<span class="due-status ok">&#10003; เปลี่ยนแล้ว ${thaiDate(rec.changed_date)}</span>` +
+        (canUndo(rec) ? `<button class="undo-btn" type="button" data-act="undo" data-id="${rec.id}">ยกเลิก</button>` : '');
+    }
+    return `<button class="change-btn" type="button" data-act="change"
+      data-ward="${escapeHtml(it.ward)}" data-bed="${escapeHtml(it.bed)}" data-machine="${escapeHtml(it.machineNo)}"
+      data-type="${escapeHtml(it.ventType)}" data-due="${it.dueISO}">เปลี่ยน</button>`;
+  };
+  const scheduleTable = items => `
+    <table class="due-table">
+      <thead><tr><th>หน่วยงาน / ตึก</th><th>เตียง</th><th>เลขเครื่อง</th><th>วันครบ (ที่คีย์)</th><th>หมายเหตุ</th><th>บันทึกการเปลี่ยน</th></tr></thead>
+      <tbody>${items.map(it=>`<tr>
+        <td>${escapeHtml(it.ward)}</td>
+        <td>${escapeHtml(it.bed)||'-'}</td>
+        <td class="mono">${escapeHtml(it.machineNo)}</td>
+        <td class="mono">${thaiDate(it.dueISO)}</td>
+        <td>${it.shifted ? '<span class="due-status soon">เลื่อนจากอังคาร</span>' : ''}</td>
+        <td style="white-space:nowrap">${actionCell(it)}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  const groupHtml = (key, title, countText, items, cls, open) => `
+    <div class="accordion-month sched-group ${cls}${open ? ' open' : ''}" data-key="${key}">
+      <button class="accordion-head" type="button"><span><span class="chev">&#9656;</span> ${title}</span><span class="mcount">${countText}</span></button>
+      <div class="accordion-body">${scheduleTable(items)}</div>
+    </div>`;
+  const isOpen = (key, dflt)=> hadContent ? openKeys.has(key) : dflt;
+
+  const todayGroup = sched.groups.find(g=> g.changeISO === todayISO);
+  const defaultOpenKey = todayGroup ? todayISO : (sched.groups[0] && sched.groups[0].changeISO);
+
+  if(overdue.length === 0 && sched.groups.length === 0){
+    dueEl.innerHTML = `<div class="due-empty">ไม่มีเครื่องที่ต้องเปลี่ยนในรอบราวล่าสุด</div>`;
+  } else {
+    dueEl.innerHTML =
+      (overdue.length ? groupHtml('overdue', 'เลยกำหนด (ยังไม่ได้เปลี่ยน)', `${overdue.length} เครื่อง`, overdue, 'sched-overdue', isOpen('overdue', true)) : '') +
+      sched.groups.map(g=>{
+        const done = g.items.filter(recOf).length;
+        const todayTag = g.changeISO === todayISO ? ' <span class="due-status change">วันนี้</span>' : '';
+        return groupHtml(g.changeISO, `${thaiWeekday(g.changeISO)} ${thaiDate(g.changeISO)}${todayTag}`,
+          `เปลี่ยนแล้ว ${done}/${g.items.length} เครื่อง`, g.items, '', isOpen(g.changeISO, g.changeISO === defaultOpenKey));
+      }).join('');
+  }
+
+  const pendingToday = (todayGroup ? todayGroup.items.filter(it=>!recOf(it)).length : 0) + overdue.length;
+  document.getElementById('dueBadge').textContent = pendingToday ? `ต้องเปลี่ยน ${pendingToday} เครื่อง` : '';
+
+  dueEl.onclick = e=>{
+    const head = e.target.closest('.accordion-head');
+    if(head){ head.parentElement.classList.toggle('open'); return; }
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    if(btn.dataset.act === 'change') markCircuitChange(btn);
+    else if(btn.dataset.act === 'undo') undoCircuitChange(Number(btn.dataset.id));
+  };
+}
+
+async function markCircuitChange(btn){
+  const d = btn.dataset;
+  btn.disabled = true;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/circuit_changes`, {
+      method:'POST',
+      headers:{...SB_HEADERS, 'Content-Type':'application/json', 'Prefer':'return=representation'},
+      body: JSON.stringify({changed_date: localTodayISO(), ward:d.ward, bed:d.bed||null, machine_no:d.machine, vent_type:d.type||null, due_date:d.due})
+    });
+    if(res.status === 409){
+      CIRCUIT_CHANGES = await fetchCircuitChanges();
+    } else {
+      if(!res.ok) throw new Error((await res.text()) || ('HTTP '+res.status));
+      CIRCUIT_CHANGES.push((await res.json())[0]);
+    }
+    renderSchedule();
+    renderCircuitStats();
+  }catch(err){
+    btn.disabled = false;
+    alert('บันทึกการเปลี่ยนไม่สำเร็จ: '+err.message);
+  }
+}
+
+async function undoCircuitChange(id){
+  if(!confirm('ยกเลิกการบันทึก "เปลี่ยน" รายการนี้?')) return;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/circuit_changes?id=eq.${encodeURIComponent(id)}`, {
+      method:'DELETE', headers:{...SB_HEADERS, 'Prefer':'return=representation'}
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    if((await res.json()).length === 0) throw new Error('ยกเลิกได้เฉพาะรายการย้อนหลังไม่เกิน 30 วัน');
+    CIRCUIT_CHANGES = CIRCUIT_CHANGES.filter(c=>c.id !== id);
+    renderSchedule();
+    renderCircuitStats();
+  }catch(err){
+    alert('ยกเลิกไม่สำเร็จ: '+err.message);
+  }
+}
+
+function renderCircuitStats(){
+  const el = document.getElementById('circuitStats');
+  const types = (FULL_DATA && FULL_DATA.types) || ['C2','High flow','Bird'];
+  const periodLabel = selectedFY==='all' ? 'ทุกช่วงเวลา' : `ปีงบประมาณ ${selectedFY}`;
+  document.getElementById('circuitTitle').textContent = `สถิติการเปลี่ยนสาย circuit (${periodLabel})`;
+  if(CIRCUIT_CHANGES.length === 0){
+    el.innerHTML = `<div class="due-empty">ยังไม่มีการบันทึกการเปลี่ยนสาย — กดปุ่ม "เปลี่ยน" ในตารางเปลี่ยนเครื่องด้านบนเมื่อเปลี่ยนสายแล้ว</div>`;
+    return;
+  }
+  const tally = list=>{
+    const o = {total:0}; types.forEach(t=>o[t]=0);
+    list.forEach(c=>{ o.total++; if(types.includes(c.vent_type)) o[c.vent_type]++; });
+    return o;
+  };
+  const typeHead = types.map(t=>`<th class="num">${escapeHtml(t)}</th>`).join('');
+  const typeCells = o=> types.map(t=>`<td class="num">${o[t]}</td>`).join('');
+
+  // yearly (fiscal year)
+  const byFY = {};
+  CIRCUIT_CHANGES.forEach(c=> (byFY[fiscalYearOfISO(c.changed_date)] = byFY[fiscalYearOfISO(c.changed_date)] || []).push(c));
+  const yearRows = Object.keys(byFY).map(Number).sort((a,b)=>a-b).map(fy=>{
+    const o = tally(byFY[fy]);
+    return `<tr><td>ปีงบประมาณ ${fy}</td>${typeCells(o)}<td class="num"><b>${o.total}</b></td></tr>`;
+  }).join('');
+
+  // monthly
+  let monthKeys = [];
+  if(selectedFY === 'all'){
+    const keys = CIRCUIT_CHANGES.map(c=>c.changed_date.slice(0,7)).sort();
+    let [y,m] = keys[0].split('-').map(Number);
+    const [ly,lm] = keys[keys.length-1].split('-').map(Number);
+    while(y<ly || (y===ly && m<=lm)){
+      monthKeys.push(`${y}-${String(m).padStart(2,'0')}`);
+      if(++m>12){ m=1; y++; }
+    }
+  } else {
+    const [s] = fiscalYearRangeISO(selectedFY);
+    let y = Number(s.slice(0,4)), m = 10;
+    for(let i=0;i<12;i++){
+      monthKeys.push(`${y}-${String(m).padStart(2,'0')}`);
+      if(++m>12){ m=1; y++; }
+    }
+  }
+  const monthTallies = monthKeys.map(k=>({k, o:tally(CIRCUIT_CHANGES.filter(c=>c.changed_date.startsWith(k)))}));
+  const maxTotal = Math.max(1, ...monthTallies.map(x=>x.o.total));
+  const grand = monthTallies.reduce((s,x)=>s+x.o.total, 0);
+  const grandByType = {}; types.forEach(t=> grandByType[t] = monthTallies.reduce((s,x)=>s+x.o[t],0));
+  const monthRows = monthTallies.map(({k,o})=>
+    `<tr><td>${thaiMonthLabel(k+'-01')}</td>${typeCells(o)}<td class="num"><b>${o.total}</b></td>
+     <td><span class="stat-bar" style="width:${Math.round(o.total/maxTotal*160)}px"></span></td></tr>`).join('');
+
+  // recent log (for undo)
+  const recent = [...CIRCUIT_CHANGES].sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||'')).slice(0,10);
+  const recentRows = recent.map(c=>`<tr>
+    <td class="mono">${thaiDate(c.changed_date)}</td><td>${escapeHtml(c.ward)}</td><td>${escapeHtml(c.bed)||'-'}</td>
+    <td class="mono">${escapeHtml(c.machine_no)}</td><td>${escapeHtml(c.vent_type)||'-'}</td>
+    <td>${canUndo(c) ? `<button class="undo-btn" type="button" data-act="undo" data-id="${c.id}">ยกเลิก</button>` : ''}</td></tr>`).join('');
+
+  el.innerHTML = `
+    <div class="stat-block">
+      <h4>รายปี (ปีงบประมาณ)</h4>
+      <table class="due-table"><thead><tr><th>ปี</th>${typeHead}<th class="num">รวม (ครั้ง)</th></tr></thead>
+      <tbody>${yearRows}</tbody></table>
+    </div>
+    <div class="stat-block">
+      <h4>รายเดือน (${periodLabel})</h4>
+      <table class="due-table"><thead><tr><th>เดือน</th>${typeHead}<th class="num">รวม (ครั้ง)</th><th></th></tr></thead>
+      <tbody>${monthRows}
+        <tr class="total-row"><td>รวม</td>${typeCells({...grandByType})}<td class="num">${grand}</td><td></td></tr></tbody></table>
+    </div>
+    <div class="stat-block">
+      <h4>รายการเปลี่ยนล่าสุด</h4>
+      <div class="raw-table-wrap"><table class="due-table"><thead><tr><th>วันที่เปลี่ยน</th><th>หน่วยงาน</th><th>เตียง</th><th>เลขเครื่อง</th><th>ประเภท</th><th></th></tr></thead>
+      <tbody>${recentRows}</tbody></table></div>
+    </div>`;
+  el.onclick = e=>{
+    const btn = e.target.closest('button[data-act="undo"]');
+    if(btn) undoCircuitChange(Number(btn.dataset.id));
+  };
+}
+
 async function deleteRound(id, d){
   if(!confirm('ยืนยันการลบรายการนี้? การลบไม่สามารถย้อนกลับได้')) return;
   try{
@@ -1239,7 +1450,11 @@ async function syncNow(){
   setSync('loading', 'กำลังดึงข้อมูลล่าสุดจาก Supabase...');
 
   try{
-    const rows = await fetchAllRoundsFromSupabase();
+    const [rows, changes] = await Promise.all([
+      fetchAllRoundsFromSupabase(),
+      fetchCircuitChanges().catch(()=> CIRCUIT_CHANGES)
+    ]);
+    CIRCUIT_CHANGES = changes;
     const data = buildDataFromRows(rows);
     if(!data) throw new Error('empty');
     const now = new Date();
