@@ -422,6 +422,13 @@ table.due-table tr:last-child td{border-bottom:none;}
 }
 .change-btn:hover{filter:brightness(1.06);}
 .change-btn:disabled{opacity:.55; cursor:default;}
+.return-btn{
+  background:#fff; color:var(--slate-600); border:1px solid var(--slate-300);
+  font-family:'Sarabun',sans-serif; font-weight:700; font-size:12.5px;
+  padding:5px 12px; border-radius:8px; cursor:pointer; margin-left:6px;
+}
+.return-btn:hover{background:var(--teal-100); border-color:var(--teal-500);}
+.return-btn:disabled{opacity:.55; cursor:default;}
 .undo-btn{
   background:none; border:1px solid var(--slate-300); color:var(--slate-600);
   font-family:'Sarabun',sans-serif; font-weight:600; font-size:11.5px;
@@ -663,6 +670,7 @@ let trendChartInstance = null;
 let CURRENT = null;
 let FULL_DATA = null;
 let CIRCUIT_CHANGES = []; // rows from circuit_changes (logged "เปลี่ยน" button presses)
+let MACHINE_RETURNS = []; // rows from machine_returns (logged "คืนเครื่องแล้ว" presses)
 let selectedFY = fiscalYearOfISO(localTodayISO());
 
 function fmt(n){ return (n||0).toLocaleString('en-US'); }
@@ -1216,7 +1224,17 @@ function renderSchedule(){
   const map = circuitMap();
   const recOf = it => map.get(changeKey(it.ward, it.machineNo, it.dueISO));
   // a logged change pushes that machine's next due date to changed_date + 14 days
-  const effectiveDue = (data.dueList || []).map(it=>{
+  // a returned machine drops off the schedule until a later round records it again
+  const lastReturn = {};
+  MACHINE_RETURNS.forEach(r=>{
+    const k = r.ward+'|'+r.machine_no;
+    if(!lastReturn[k] || r.returned_date > lastReturn[k]) lastReturn[k] = r.returned_date;
+  });
+  const notReturned = it=>{
+    const ret = lastReturn[it.ward+'|'+it.machineNo];
+    return !(ret && it.roundDate && ret >= it.roundDate);
+  };
+  const effectiveDue = (data.dueList || []).filter(notReturned).map(it=>{
     const item = {...it};
     let rec, guard = 0;
     while((rec = recOf(item)) && guard++ < 50){
@@ -1236,9 +1254,10 @@ function renderSchedule(){
       return `<span class="due-status ok">&#10003; เปลี่ยนแล้ว ${thaiDate(rec.changed_date)}</span>` +
         (canUndo(rec) ? `<button class="undo-btn" type="button" data-act="undo" data-id="${rec.id}">ยกเลิก</button>` : '');
     }
-    return `<button class="change-btn" type="button" data-act="change"
-      data-ward="${escapeHtml(it.ward)}" data-bed="${escapeHtml(it.bed)}" data-machine="${escapeHtml(it.machineNo)}"
-      data-type="${escapeHtml(it.ventType)}" data-due="${it.dueISO}">เปลี่ยน</button>`;
+    const attrs = `data-ward="${escapeHtml(it.ward)}" data-bed="${escapeHtml(it.bed)}" data-machine="${escapeHtml(it.machineNo)}"
+      data-type="${escapeHtml(it.ventType)}" data-due="${it.dueISO}"`;
+    return `<button class="change-btn" type="button" data-act="change" ${attrs}>เปลี่ยน</button>` +
+      `<button class="return-btn" type="button" data-act="return" ${attrs}>คืนเครื่องแล้ว</button>`;
   };
   const scheduleTable = items => `
     <table class="due-table">
@@ -1283,6 +1302,7 @@ function renderSchedule(){
     const btn = e.target.closest('button[data-act]');
     if(!btn) return;
     if(btn.dataset.act === 'change') markCircuitChange(btn);
+    else if(btn.dataset.act === 'return') markMachineReturn(btn);
     else if(btn.dataset.act === 'undo') undoCircuitChange(Number(btn.dataset.id));
   };
 }
@@ -1310,6 +1330,53 @@ async function markCircuitChange(btn){
   }
 }
 
+async function fetchMachineReturns(){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/machine_returns?select=id,returned_date,ward,bed,machine_no,vent_type,created_at&order=returned_date.asc&limit=10000`,
+    {cache:'no-store', headers:SB_HEADERS});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  return res.json();
+}
+
+async function markMachineReturn(btn){
+  const d = btn.dataset;
+  if(!confirm(`ยืนยันคืนเครื่อง ${d.machine} (${d.ward}) แล้ว?\nเครื่องนี้จะหายออกจากตารางเปลี่ยนเครื่องจนกว่าจะมีการ round ครั้งถัดไป`)) return;
+  btn.disabled = true;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/machine_returns`, {
+      method:'POST',
+      headers:{...SB_HEADERS, 'Content-Type':'application/json', 'Prefer':'return=representation'},
+      body: JSON.stringify({returned_date: (FULL_DATA && FULL_DATA.latestRoundDate) || localTodayISO(), ward:d.ward, bed:d.bed||null, machine_no:d.machine, vent_type:d.type||null})
+    });
+    if(res.status === 409){
+      MACHINE_RETURNS = await fetchMachineReturns();
+    } else {
+      if(!res.ok) throw new Error((await res.text()) || ('HTTP '+res.status));
+      MACHINE_RETURNS.push((await res.json())[0]);
+    }
+    renderSchedule();
+    renderCircuitStats();
+  }catch(err){
+    btn.disabled = false;
+    alert('บันทึกการคืนเครื่องไม่สำเร็จ: '+err.message);
+  }
+}
+
+async function undoMachineReturn(id){
+  if(!confirm('ยกเลิกการบันทึก "คืนเครื่องแล้ว" รายการนี้?')) return;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/machine_returns?id=eq.${encodeURIComponent(id)}`, {
+      method:'DELETE', headers:{...SB_HEADERS, 'Prefer':'return=representation'}
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    if((await res.json()).length === 0) throw new Error('ยกเลิกได้เฉพาะรายการย้อนหลังไม่เกิน 30 วัน');
+    MACHINE_RETURNS = MACHINE_RETURNS.filter(r=>r.id !== id);
+    renderSchedule();
+    renderCircuitStats();
+  }catch(err){
+    alert('ยกเลิกไม่สำเร็จ: '+err.message);
+  }
+}
+
 async function undoCircuitChange(id){
   if(!confirm('ยกเลิกการบันทึก "เปลี่ยน" รายการนี้?')) return;
   try{
@@ -1331,8 +1398,25 @@ function renderCircuitStats(){
   const types = (FULL_DATA && FULL_DATA.types) || ['C2','High flow','Bird'];
   const periodLabel = selectedFY==='all' ? 'ทุกช่วงเวลา' : `ปีงบประมาณ ${selectedFY}`;
   document.getElementById('circuitTitle').textContent = `สถิติการเปลี่ยนสาย circuit (${periodLabel})`;
+  const recentReturns = [...MACHINE_RETURNS].sort((a,b)=> (b.created_at||'').localeCompare(a.created_at||'')).slice(0,10);
+  const returnsHtml = recentReturns.length ? `
+    <div class="stat-block">
+      <h4>คืนเครื่องล่าสุด</h4>
+      <div class="raw-table-wrap"><table class="due-table"><thead><tr><th>วันที่คืน</th><th>หน่วยงาน</th><th>เตียง</th><th>เลขเครื่อง</th><th>ประเภท</th><th></th></tr></thead>
+      <tbody>${recentReturns.map(r=>`<tr>
+        <td class="mono">${thaiDate(r.returned_date)}</td><td>${escapeHtml(r.ward)}</td><td>${escapeHtml(r.bed)||'-'}</td>
+        <td class="mono">${escapeHtml(r.machine_no)}</td><td>${escapeHtml(r.vent_type)||'-'}</td>
+        <td>${r.returned_date >= addDaysISO(localTodayISO(), -30) ? `<button class="undo-btn" type="button" data-act="undo-return" data-id="${r.id}">ยกเลิก</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
+    </div>` : '';
+  const statsClick = e=>{
+    const btn = e.target.closest('button[data-act]');
+    if(!btn) return;
+    if(btn.dataset.act === 'undo') undoCircuitChange(Number(btn.dataset.id));
+    else if(btn.dataset.act === 'undo-return') undoMachineReturn(Number(btn.dataset.id));
+  };
   if(CIRCUIT_CHANGES.length === 0){
-    el.innerHTML = `<div class="due-empty">ยังไม่มีการบันทึกการเปลี่ยนสาย — กดปุ่ม "เปลี่ยน" ในตารางเปลี่ยนเครื่องด้านบนเมื่อเปลี่ยนสายแล้ว</div>`;
+    el.innerHTML = `<div class="due-empty">ยังไม่มีการบันทึกการเปลี่ยนสาย — กดปุ่ม "เปลี่ยน" ในตารางเปลี่ยนเครื่องด้านบนเมื่อเปลี่ยนสายแล้ว</div>` + returnsHtml;
+    el.onclick = statsClick;
     return;
   }
   const tally = list=>{
@@ -1400,11 +1484,8 @@ function renderCircuitStats(){
       <h4>รายการเปลี่ยนล่าสุด</h4>
       <div class="raw-table-wrap"><table class="due-table"><thead><tr><th>วันที่เปลี่ยน</th><th>หน่วยงาน</th><th>เตียง</th><th>เลขเครื่อง</th><th>ประเภท</th><th></th></tr></thead>
       <tbody>${recentRows}</tbody></table></div>
-    </div>`;
-  el.onclick = e=>{
-    const btn = e.target.closest('button[data-act="undo"]');
-    if(btn) undoCircuitChange(Number(btn.dataset.id));
-  };
+    </div>` + returnsHtml;
+  el.onclick = statsClick;
 }
 
 async function deleteRound(id, d){
@@ -1471,11 +1552,13 @@ async function syncNow(){
   setSync('loading', 'กำลังดึงข้อมูลล่าสุดจาก Supabase...');
 
   try{
-    const [rows, changes] = await Promise.all([
+    const [rows, changes, returns] = await Promise.all([
       fetchAllRoundsFromSupabase(),
-      fetchCircuitChanges().catch(()=> CIRCUIT_CHANGES)
+      fetchCircuitChanges().catch(()=> CIRCUIT_CHANGES),
+      fetchMachineReturns().catch(()=> MACHINE_RETURNS)
     ]);
     CIRCUIT_CHANGES = changes;
+    MACHINE_RETURNS = returns;
     const data = buildDataFromRows(rows);
     if(!data) throw new Error('empty');
     const now = new Date();
