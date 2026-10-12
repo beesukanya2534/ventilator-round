@@ -624,7 +624,7 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
     <div class="ward-grid" id="wardGrid"></div>
   </div>
 
-  <div class="panel due-panel" id="duePanel">
+  <div class="panel due-panel open" id="duePanel">
     <button class="section-title due-toggle" id="dueToggle" type="button">
       <span class="chev">&#9656;</span> ตารางเปลี่ยนเครื่อง (อังคาร / พฤหัสบดี) <span class="due-badge" id="dueBadge"></span>
     </button>
@@ -1115,7 +1115,9 @@ function selectDate(d){
   const dueWardRows = wardRows.filter(([,obj])=>obj.dueSoon);
   const dueDayHtml = dueWardRows.length ? `
     <div class="day-due-panel">
-      <div class="day-due-head">วันที่ครบเปลี่ยน &middot; รอบวันที่ ${thaiDate(d)}</div>
+      <div class="day-due-head">วันที่ครบเปลี่ยน &middot; รอบวันที่ ${thaiDate(d)}
+        <button class="pdf-btn" type="button" style="margin-left:10px" onclick="gotoSchedule()">ไปที่ปุ่ม "เปลี่ยน" / บันทึกการเปลี่ยนสาย</button>
+      </div>
       <table class="due-table">
         <thead><tr><th>หน่วยงาน / ตึก</th><th>วันที่ครบเปลี่ยนใกล้สุด</th><th>สถานะ</th></tr></thead>
         <tbody>
@@ -1178,6 +1180,12 @@ function selectDate(d){
   detail.querySelectorAll('.del-btn').forEach(btn=>{
     btn.addEventListener('click', ()=> deleteRound(btn.dataset.id, d));
   });
+}
+
+function gotoSchedule(){
+  const p = document.getElementById('duePanel');
+  p.classList.add('open');
+  p.scrollIntoView({block:'start'});
 }
 
 // ---------- circuit-change log (ปุ่ม "เปลี่ยน") ----------
