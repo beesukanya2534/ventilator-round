@@ -633,7 +633,7 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
 
   <div class="panel due-panel open" id="duePanel">
     <button class="section-title due-toggle" id="dueToggle" type="button">
-      <span class="chev">&#9656;</span> ตารางเปลี่ยนเครื่อง (อังคาร / พฤหัสบดี) <span class="due-badge" id="dueBadge"></span>
+      <span class="chev">&#9656;</span> ตารางเปลี่ยนเครื่อง (ตัดรอบทุกวันเสาร์) <span class="due-badge" id="dueBadge"></span>
     </button>
     <div id="dueList" class="due-body"></div>
   </div>
@@ -763,7 +763,7 @@ function thaiShortToISO(raw){
   return `${year}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
 }
 
-// ---------- change-day scheduling (circuits are only changed on Tue / Thu) ----------
+// ---------- change-day scheduling (weekly cut-off on Saturday) ----------
 function addDaysISO(iso, n){
   const d = new Date(iso+'T00:00:00Z');
   d.setUTCDate(d.getUTCDate()+n);
@@ -820,32 +820,25 @@ function filterAggregateByRange(data, startISO, endISO){
   return {wards, types:data.types, dates, perDate, overall, overallTotals, trend, dueList, latestRoundDate:dates[dates.length-1]};
 }
 
-// due Tue -> that Tue; due Wed/Thu -> that Thu; due Fri..Mon -> next Tue
-const CHANGE_DAY_OFFSET = {0:2, 1:1, 2:0, 3:1, 4:0, 5:4, 6:3};
+// weekly cut-off: a due date (Sun–Sat week) is changed on that week's Saturday
 function changeDayFor(dueISO){
   if(!dueISO) return null;
-  return addDaysISO(dueISO, CHANGE_DAY_OFFSET[weekdayOf(dueISO)]);
+  return addDaysISO(dueISO, 6 - weekdayOf(dueISO));
 }
 function thaiWeekday(iso){
   return ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'][weekdayOf(iso)];
 }
 function changeDayLabel(iso){ return `เปลี่ยน ${thaiWeekday(iso)} ${thaiDate(iso)}`; }
 
-// Groups active devices by the Tue/Thu they must be changed on. A Tuesday that has
-// already passed without the device's due date changing rolls over to that week's Thursday;
-// a Thursday that has passed goes to "overdue".
+// Groups active devices by the Saturday (end of their due week) they must be changed by.
+// A Saturday that has passed goes to "overdue".
 function buildChangeSchedule(dueList, todayISO, activeSinceISO){
   const overdue = [];
   const byDay = {};
   dueList.forEach(item=>{
     if(!item.dueISO || !item.roundDate || item.roundDate < activeSinceISO) return;
-    let changeISO = changeDayFor(item.dueISO);
-    let shifted = false;
-    if(weekdayOf(changeISO)===2 && todayISO > changeISO){
-      changeISO = addDaysISO(changeISO, 2);
-      shifted = true;
-    }
-    const entry = {...item, changeISO, shifted};
+    const changeISO = changeDayFor(item.dueISO);
+    const entry = {...item, changeISO, shifted:false};
     if(todayISO > changeISO){ overdue.push(entry); return; }
     (byDay[changeISO] = byDay[changeISO] || []).push(entry);
   });
@@ -1267,7 +1260,7 @@ function renderSchedule(){
         <td>${escapeHtml(it.bed)||'-'}</td>
         <td class="mono">${escapeHtml(it.machineNo)}</td>
         <td class="mono">${thaiDate(it.dueISO)}</td>
-        <td>${it.shifted ? '<span class="due-status soon">เลื่อนจากอังคาร</span> ' : ''}${it.lastChange ? `<span class="due-status ok">เปลี่ยนล่าสุด ${thaiDate(it.lastChange.changed_date)} (+14 วัน)</span>${canUndo(it.lastChange) ? `<button class="undo-btn" type="button" data-act="undo" data-id="${it.lastChange.id}">ยกเลิก</button>` : ''}` : ''}</td>
+        <td>${it.lastChange ? `<span class="due-status ok">เปลี่ยนล่าสุด ${thaiDate(it.lastChange.changed_date)} (+14 วัน)</span>${canUndo(it.lastChange) ? `<button class="undo-btn" type="button" data-act="undo" data-id="${it.lastChange.id}">ยกเลิก</button>` : ''}` : ''}</td>
         <td style="white-space:nowrap">${actionCell(it)}</td>
       </tr>`).join('')}</tbody>
     </table>`;
