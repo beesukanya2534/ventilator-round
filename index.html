@@ -633,7 +633,7 @@ body{background:linear-gradient(135deg,#FFF8FB 0%,#FCEAF2 52%,#FFF9FC 100%)}
 
   <div class="panel due-panel open" id="duePanel">
     <button class="section-title due-toggle" id="dueToggle" type="button">
-      <span class="chev">&#9656;</span> ตารางเปลี่ยนเครื่อง (ตัดรอบทุกวันเสาร์) <span class="due-badge" id="dueBadge"></span>
+      <span class="chev">&#9656;</span> ตารางเปลี่ยนเครื่อง (ตัดรอบทุกวันเสาร์ · เฉพาะ round ล่าสุด) <span class="due-badge" id="dueBadge"></span>
     </button>
     <div id="dueList" class="due-body"></div>
   </div>
@@ -1213,7 +1213,8 @@ function renderSchedule(){
   const todayISO = localTodayISO();
   const hadContent = !!dueEl.querySelector('.sched-group');
   const openKeys = new Set([...dueEl.querySelectorAll('.sched-group.open')].map(g=>g.dataset.key));
-  const activeSinceISO = data.latestRoundDate ? addDaysISO(data.latestRoundDate, -7) : '9999-12-31';
+  // only machines seen in the latest round are scheduled (older rounds are dropped)
+  const activeSinceISO = data.latestRoundDate || '9999-12-31';
   const map = circuitMap();
   const recOf = it => map.get(changeKey(it.ward, it.machineNo, it.dueISO));
   // a logged change pushes that machine's next due date to changed_date + 14 days
